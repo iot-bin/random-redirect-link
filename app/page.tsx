@@ -41,7 +41,7 @@ export default function Home() {
 
   // New controls
   const [randomSubdomain, setRandomSubdomain] = useState(true);
-  const [subdomainLength, setSubdomainLength] = useState(10);
+  const [subdomainLength, setSubdomainLength] = useState(5);
 
   const [loading, setLoading] = useState(false);
   const [resp, setResp] = useState<CreateResponse | null>(null);
