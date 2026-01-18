@@ -236,7 +236,7 @@ const styles: Record<string, React.CSSProperties> = {
   logoutBtn: {
     display: 'inline-flex',
     alignItems: 'center',
-    gap: 6,
+    gap: 8,
     borderRadius: 8,
     border: '1px solid rgba(255,255,255,0.12)',
     background: 'rgba(255,255,255,0.06)',
@@ -244,7 +244,7 @@ const styles: Record<string, React.CSSProperties> = {
     cursor: 'pointer',
     fontSize: 12,
     whiteSpace: 'nowrap',
-    minHeight: '36px',
+    minHeight: 36,
   },
   h1: { margin: 0, fontSize: 28, letterSpacing: 0.2 },
   sub: { margin: '6px 0 0', color: '#aab2c5', fontSize: 14 },
