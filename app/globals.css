@@ -26,7 +26,18 @@ body {
 }
 
 /* Logout button responsive styles */
-.logout-btn {
+button.logout-btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 8px 12px;
+  min-height: 36px;
+  border-radius: 8px;
+  border: 1px solid rgba(255,255,255,0.12);
+  background: rgba(255,255,255,0.06);
+  color: #e8eaf0;
+  cursor: pointer;
+  font-size: 12px;
   white-space: nowrap;
 }
 
@@ -46,8 +57,8 @@ body {
     display: none;
   }
   
-  .logout-btn {
-    padding: 8px !important;
+  button.logout-btn {
+    padding: 8px;
     min-width: 40px;
     justify-content: center;
   }

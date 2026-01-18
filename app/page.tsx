@@ -138,7 +138,7 @@ export default function Home() {
               <a href={HEADER_LINK_HREF} target="_blank" rel="noreferrer" style={styles.linkMuted}>
                 {HEADER_LINK_TEXT}
               </a>
-              <button onClick={onLogout} style={styles.logoutBtn} className="logout-btn">
+              <button onClick={onLogout} className="logout-btn">
                 <span className="logout-icon">
                   <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
                     <path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4" />
@@ -307,19 +307,6 @@ const styles: Record<string, React.CSSProperties> = {
     display: 'flex',
     alignItems: 'center',
     gap: 12,
-  },
-  logoutBtn: {
-    display: 'inline-flex',
-    alignItems: 'center',
-    gap: 6,
-    padding: '8px 12px',
-    minHeight: 36,
-    borderRadius: 8,
-    border: '1px solid rgba(255,255,255,0.12)',
-    background: 'rgba(255,255,255,0.06)',
-    color: '#e8eaf0',
-    cursor: 'pointer',
-    fontSize: 12,
   },
   h1: { margin: 0, fontSize: 28, letterSpacing: 0.2 },
   sub: { margin: '6px 0 0', color: '#aab2c5', fontSize: 14 },
