@@ -24,3 +24,32 @@ body {
   color: var(--foreground);
   font-family: Arial, Helvetica, sans-serif;
 }
+
+/* Logout button responsive styles */
+.logout-btn {
+  padding: 6px 12px;
+  transition: all 0.2s ease;
+}
+
+.logout-icon {
+  display: inline-flex;
+  align-items: center;
+  flex-shrink: 0;
+}
+
+.logout-text {
+  display: inline;
+}
+
+/* Mobile optimization: hide text, show icon only */
+@media (max-width: 520px) {
+  .logout-text {
+    display: none;
+  }
+  
+  .logout-btn {
+    padding: 8px;
+    min-width: 36px;
+    justify-content: center;
+  }
+}
