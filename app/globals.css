@@ -58,8 +58,9 @@ button.logout-btn {
   }
   
   button.logout-btn {
-    padding: 8px;
-    min-width: 40px;
+    padding: 10px;
+    min-width: 44px;
+    min-height: 44px;
     justify-content: center;
   }
 }
