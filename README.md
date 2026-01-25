@@ -5,34 +5,68 @@ This is a [Next.js](https://nextjs.org) project bootstrapped with [`create-next-
 Create a `.env.local` file in the root directory with the following variables:
 
 ```env
-API_BASE_URL=https://api.link.microbin.dev
-ADMIN_TOKEN=your-secret-admin-token
-NEXT_PUBLIC_REDIRECT_BASE_URL=https://link.microbin.dev
+# Console Authentication
 CONSOLE_PASSWORD=your-console-password
+
+# Branding Configuration
+SITE_TITLE=Microbin Console
+SITE_DESCRIPTION=Microbin short link console
+SITE_SUBTITLE=创建自定义路径短链接（跳转）
+
+# API Targets Configuration (JSON format)
+# Define multiple API environments with their credentials and redirect domains
+API_TARGETS=[{"id":"prod","name":"Production (link.microbin.dev)","apiBaseUrl":"https://api.link.microbin.dev","adminToken":"your-prod-admin-token","redirectBaseUrl":"https://link.microbin.dev"},{"id":"staging","name":"Staging (link-staging.microbin.dev)","apiBaseUrl":"https://api-staging.link.microbin.dev","adminToken":"your-staging-admin-token","redirectBaseUrl":"https://link-staging.microbin.dev"}]
+
+# Default target ID (optional, defaults to first target in API_TARGETS)
+DEFAULT_TARGET_ID=prod
 ```
 
 ### Required Variables
 
-- `API_BASE_URL`: The URL of the Microbin API
-- `ADMIN_TOKEN`: Your admin token for the API
-- `NEXT_PUBLIC_REDIRECT_BASE_URL`: The base URL for generated short links
 - `CONSOLE_PASSWORD`: The password required to access the console
+- `API_TARGETS`: JSON array of API target configurations (see below)
+
+### API Targets Configuration
+
+The `API_TARGETS` variable defines multiple API environments that can be selected in the console. Each target must have:
+
+- `id`: Unique identifier for the target (e.g., "prod", "staging")
+- `name`: Display name shown in the UI (e.g., "Production (link.microbin.dev)")
+- `apiBaseUrl`: The backend Admin API URL (e.g., "https://api.link.microbin.dev")
+- `adminToken`: Secret admin token for the API (kept server-side only)
+- `redirectBaseUrl`: The public short link domain (e.g., "https://link.microbin.dev")
+
+Example with multiple environments:
+
+```json
+[
+  {
+    "id": "prod",
+    "name": "Production (link.microbin.dev)",
+    "apiBaseUrl": "https://api.link.microbin.dev",
+    "adminToken": "your-prod-admin-token",
+    "redirectBaseUrl": "https://link.microbin.dev"
+  },
+  {
+    "id": "staging",
+    "name": "Staging (link-staging.microbin.dev)",
+    "apiBaseUrl": "https://api-staging.link.microbin.dev",
+    "adminToken": "your-staging-admin-token",
+    "redirectBaseUrl": "https://link-staging.microbin.dev"
+  }
+]
+```
 
 ### Optional Branding Variables
 
-You can customize the console's branding by setting these optional environment variables. If not set, default values will be used.
-
-#### Server-side Metadata (affects browser tab)
-- `SITE_TITLE`: Browser tab title (default: `Microbin Console`)
+- `SITE_TITLE`: Browser tab title and main heading (default: `Microbin Console`)
 - `SITE_DESCRIPTION`: Page meta description (default: `Microbin short link console`)
+- `SITE_SUBTITLE`: Page subtitle (default: `创建自定义路径短链接（跳转）`)
+- `DEFAULT_TARGET_ID`: Default selected API target (defaults to first target)
 
-#### Client-side Branding (affects visible page content)
-- `NEXT_PUBLIC_SITE_TITLE`: Main page heading (default: `Microbin Console`)
-- `NEXT_PUBLIC_SITE_SUBTITLE`: Page subtitle (default: `创建自定义路径短链接（跳转）`)
-- `NEXT_PUBLIC_HEADER_LINK_TEXT`: Text for the top-right header link (default: `link.microbin.dev`)
-- `NEXT_PUBLIC_HEADER_LINK_HREF`: URL for the top-right header link (default: `https://link.microbin.dev`)
+**Security Note**: The `adminToken` values are kept server-side only and never exposed to the browser. Only the `redirectBaseUrl` is sent to the frontend for displaying the short link domain.
 
-**Deployment on Vercel or other platforms**: Set these environment variables in your platform's dashboard (e.g., Vercel Project Settings → Environment Variables). Variables prefixed with `NEXT_PUBLIC_` will be exposed to the browser, while others remain server-side only.
+**Deployment on Vercel or other platforms**: Set these environment variables in your platform's dashboard (e.g., Vercel Project Settings → Environment Variables). All sensitive credentials remain server-side.
 
 ## Getting Started
 

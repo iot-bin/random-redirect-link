@@ -1,6 +1,6 @@
 'use client';
 
-import { useMemo, useState } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 import { useRouter } from 'next/navigation';
 
 type CreateResponse =
@@ -19,6 +19,17 @@ type CreateResponse =
 }
     | { error: string; detail?: string };
 
+interface ApiTarget {
+  id: string;
+  name: string;
+  redirectBaseUrl: string;
+}
+
+interface TargetsResponse {
+  targets: ApiTarget[];
+  defaultTargetId: string | null;
+}
+
 function normalizePath(input: string) {
   // English comment: normalize user input path
   const s = (input || '').trim();
@@ -28,16 +39,18 @@ function normalizePath(input: string) {
 }
 
 // Read branding configuration from environment variables at module level
-const SITE_TITLE = process.env.NEXT_PUBLIC_SITE_TITLE || 'Microbin Console';
-const SITE_SUBTITLE = process.env.NEXT_PUBLIC_SITE_SUBTITLE || '创建自定义路径短链接（跳转）';
-const HEADER_LINK_TEXT = process.env.NEXT_PUBLIC_HEADER_LINK_TEXT || 'link.microbin.dev';
-const HEADER_LINK_HREF = process.env.NEXT_PUBLIC_HEADER_LINK_HREF || 'https://link.microbin.dev';
-const REDIRECT_BASE_URL = process.env.NEXT_PUBLIC_REDIRECT_BASE_URL || 'https://link.microbin.dev';
+const SITE_TITLE = process.env.NEXT_PUBLIC_SITE_TITLE || process.env.SITE_TITLE || 'Microbin Console';
+const SITE_SUBTITLE = process.env.NEXT_PUBLIC_SITE_SUBTITLE || process.env.SITE_SUBTITLE || '创建自定义路径短链接（跳转）';
 
 export default function Home() {
   const router = useRouter();
   const [path, setPath] = useState('hello3');
   const [targetUrl, setTargetUrl] = useState('https://example.com');
+
+  // API Target selection
+  const [apiTargets, setApiTargets] = useState<ApiTarget[]>([]);
+  const [selectedTargetId, setSelectedTargetId] = useState<string>('');
+  const [loadingTargets, setLoadingTargets] = useState(true);
 
   // New controls
   const [randomSubdomain, setRandomSubdomain] = useState(true);
@@ -47,10 +60,43 @@ export default function Home() {
   const [resp, setResp] = useState<CreateResponse | null>(null);
   const [copied, setCopied] = useState(false);
 
+  // Load available API targets on mount
+  useEffect(() => {
+    async function loadTargets() {
+      try {
+        const res = await fetch('/api/targets');
+        if (res.ok) {
+          const data: TargetsResponse = await res.json();
+          setApiTargets(data.targets);
+          if (data.defaultTargetId) {
+            setSelectedTargetId(data.defaultTargetId);
+          } else if (data.targets.length > 0) {
+            setSelectedTargetId(data.targets[0].id);
+          }
+        }
+      } catch (err) {
+        console.error('Failed to load API targets:', err);
+      } finally {
+        setLoadingTargets(false);
+      }
+    }
+    loadTargets();
+  }, []);
+
+  // Get current selected target
+  const selectedTarget = useMemo(() => {
+    return apiTargets.find(t => t.id === selectedTargetId);
+  }, [apiTargets, selectedTargetId]);
+
+  // Get redirect base URL from selected target
+  const redirectBaseUrl = useMemo(() => {
+    return selectedTarget?.redirectBaseUrl || '';
+  }, [selectedTarget]);
+
   const normalizedPath = useMemo(() => normalizePath(path), [path]);
   const shortUrl = useMemo(() => {
-    return normalizedPath ? `${REDIRECT_BASE_URL}/${encodeURI(normalizedPath)}` : '';
-  }, [normalizedPath]);
+    return normalizedPath && redirectBaseUrl ? `${redirectBaseUrl}/${encodeURI(normalizedPath)}` : '';
+  }, [normalizedPath, redirectBaseUrl]);
 
   const pathError = useMemo(() => {
     if (!normalizedPath) return 'Path 不能为空';
@@ -74,12 +120,17 @@ export default function Home() {
     return '';
   }, [randomSubdomain, subdomainLength]);
 
+  const targetError = useMemo(() => {
+    if (!selectedTargetId) return 'Please select an API target';
+    return '';
+  }, [selectedTargetId]);
+
   async function onCreate(e: React.FormEvent) {
     e.preventDefault();
     setCopied(false);
     setResp(null);
 
-    if (pathError || urlError || randomError) {
+    if (pathError || urlError || randomError || targetError) {
       setResp({ error: '表单校验失败，请检查输入' });
       return;
     }
@@ -90,6 +141,7 @@ export default function Home() {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
+          targetId: selectedTargetId,
           path: normalizedPath,
           targetUrl: targetUrl.trim(),
           randomSubdomain,
@@ -135,9 +187,13 @@ export default function Home() {
               <p style={styles.sub}>{SITE_SUBTITLE}</p>
             </div>
             <div style={styles.headerRight}>
-              <a href={HEADER_LINK_HREF} target="_blank" rel="noreferrer" style={styles.linkMuted}>
-                {HEADER_LINK_TEXT}
-              </a>
+              {selectedTarget ? (
+                  <a href={selectedTarget.redirectBaseUrl} target="_blank" rel="noreferrer" style={styles.linkMuted}>
+                    {selectedTarget.redirectBaseUrl.replace(/^https?:\/\//, '')}
+                  </a>
+              ) : (
+                  <span style={styles.linkMuted}>Loading...</span>
+              )}
               <button onClick={onLogout} className="logout-btn">
                 <span className="logout-icon">
                   <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
@@ -153,6 +209,38 @@ export default function Home() {
 
           <section style={styles.card}>
             <form onSubmit={onCreate} style={styles.form}>
+              {/* API Target Selector */}
+              <div style={styles.row}>
+                <label style={styles.label}>
+                  API / 环境选择
+                  {loadingTargets ? (
+                      <div style={styles.hint}>加载中...</div>
+                  ) : apiTargets.length === 0 ? (
+                      <div style={styles.errorText}>
+                        未配置 API 目标。请在服务器端配置 API_TARGETS 环境变量。
+                      </div>
+                  ) : (
+                      <select
+                          value={selectedTargetId}
+                          onChange={(e) => setSelectedTargetId(e.target.value)}
+                          style={styles.select}
+                      >
+                        {apiTargets.map((target) => (
+                            <option key={target.id} value={target.id}>
+                              {target.name}
+                            </option>
+                        ))}
+                      </select>
+                  )}
+                  {selectedTarget && (
+                      <div style={styles.hint}>
+                        短链域名: {selectedTarget.redirectBaseUrl}
+                      </div>
+                  )}
+                  {targetError ? <div style={styles.errorText}>{targetError}</div> : null}
+                </label>
+              </div>
+
               <div style={styles.row}>
                 <label style={styles.label}>
                   Path
@@ -210,13 +298,13 @@ export default function Home() {
 
                   {randomError ? <div style={styles.errorText}>{randomError}</div> : null}
                   <div style={styles.hint}>
-                    提示：为确保“每次访问都不同”，跳转会使用 302 并禁用缓存。
+                    提示：为确保&ldquo;每次访问都不同&rdquo;，跳转会使用 302 并禁用缓存。
                   </div>
                 </label>
               </div>
 
               <div style={styles.actions}>
-                <button type="submit" disabled={loading} style={styles.primaryBtn}>
+                <button type="submit" disabled={loading || loadingTargets || apiTargets.length === 0} style={styles.primaryBtn}>
                   {loading ? '创建中...' : '创建短链'}
                 </button>
 
@@ -329,6 +417,16 @@ const styles: Record<string, React.CSSProperties> = {
     background: 'rgba(0,0,0,0.25)',
     color: '#e8eaf0',
     outline: 'none',
+  },
+  select: {
+    width: '100%',
+    padding: '10px 12px',
+    borderRadius: 10,
+    border: '1px solid rgba(255,255,255,0.12)',
+    background: 'rgba(0,0,0,0.25)',
+    color: '#e8eaf0',
+    outline: 'none',
+    cursor: 'pointer',
   },
   hint: { color: '#aab2c5', fontSize: 12, lineHeight: 1.5 },
   code: {
