@@ -1,4 +1,5 @@
 import { NextResponse } from 'next/server';
+import { getApiTargetById } from '@/lib/api-targets';
 
 function normalizePath(input: string): string {
     // English comments: normalize and validate path
@@ -9,17 +10,25 @@ function normalizePath(input: string): string {
 }
 
 export async function POST(req: Request) {
-    const API_BASE_URL = process.env.API_BASE_URL; // e.g. https://api.link.microbin.dev
-    const ADMIN_TOKEN = process.env.ADMIN_TOKEN;   // secret token
-
-    if (!API_BASE_URL || !ADMIN_TOKEN) {
+    const body = await req.json().catch(() => ({}));
+    const targetId = String(body?.targetId ?? '').trim();
+    
+    // Get the API target configuration based on targetId
+    if (!targetId) {
         return NextResponse.json(
-            { error: 'Server is not configured (missing API_BASE_URL or ADMIN_TOKEN).' },
-            { status: 500 }
+            { error: 'targetId is required' },
+            { status: 400 }
         );
     }
 
-    const body = await req.json().catch(() => ({}));
+    const target = getApiTargetById(targetId);
+    if (!target) {
+        return NextResponse.json(
+            { error: `Invalid targetId: ${targetId}. Target not found in API_TARGETS configuration.` },
+            { status: 400 }
+        );
+    }
+
     const path = normalizePath(String(body?.path ?? ''));
     const targetUrl = String(body?.targetUrl ?? '').trim();
 
@@ -40,13 +49,13 @@ export async function POST(req: Request) {
         }
     }
 
-    // Forward request to AWS Admin API
-    const upstream = await fetch(`${API_BASE_URL}/links`, {
+    // Forward request to the selected AWS Admin API
+    const upstream = await fetch(`${target.apiBaseUrl}/links`, {
         method: 'POST',
         headers: {
             'Content-Type': 'application/json',
             // English comments: keep token on server side only
-            'Authorization': `Bearer ${ADMIN_TOKEN}`,
+            'Authorization': `Bearer ${target.adminToken}`,
         },
         body: JSON.stringify({
             path,
