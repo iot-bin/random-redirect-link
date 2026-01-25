@@ -55,7 +55,13 @@ export async function POST(req: Request) {
         apiBaseUrl = target.baseUrl;
     } else {
         // No apiTarget specified: use first available target (backward compatibility)
-        const firstTarget = Array.from(targets.values())[0];
+        const firstTarget = targets.values().next().value;
+        if (!firstTarget) {
+            return NextResponse.json(
+                { error: 'No API targets configured.' },
+                { status: 500 }
+            );
+        }
         apiBaseUrl = firstTarget.baseUrl;
     }
 

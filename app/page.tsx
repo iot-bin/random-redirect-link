@@ -98,8 +98,8 @@ export default function Home() {
         targetUrl: targetUrl.trim(),
       };
       
-      // Include apiTarget if multiple targets available
-      if (apiTargets.length > 1 && apiTarget) {
+      // Include apiTarget if selected
+      if (apiTarget) {
         requestBody.apiTarget = apiTarget;
       }
       
@@ -201,6 +201,7 @@ export default function Home() {
                         onChange={(e) => setApiTarget(e.target.value)}
                         style={styles.select}
                         required
+                        aria-label="选择 API 域名"
                     >
                       <option value="" disabled>
                         -- 请选择 API 域名 --

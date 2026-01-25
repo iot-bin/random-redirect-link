@@ -24,8 +24,8 @@ export function parseApiTargets(envValue?: string): Map<string, ApiTarget> {
   const entries = envValue.split(',').map(s => s.trim()).filter(Boolean);
   
   for (const entry of entries) {
-    // Match pattern: alias[:label]:url where url starts with http:// or https://
-    // Use regex to extract components properly
+    // Match pattern where everything before the last occurrence of '://protocol'
+    // is the alias (possibly with |label), and everything after is the URL
     const match = entry.match(/^([^:]+):(https?:\/\/.+)$/);
     
     if (!match) {
@@ -36,7 +36,7 @@ export function parseApiTargets(envValue?: string): Map<string, ApiTarget> {
     const aliasAndLabel = match[1];
     const url = match[2];
     
-    // Parse alias and optional label
+    // Parse alias and optional label (separated by pipe)
     let alias: string;
     let label: string | undefined;
     
