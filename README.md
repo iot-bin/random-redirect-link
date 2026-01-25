@@ -29,8 +29,38 @@ NEXT_PUBLIC_HEADER_LINK_HREF=https://link.microbin.dev
 ### Environment Variables
 
 **API Configuration:**
-- `API_BASE_URL`: The URL of the Microbin API
-- `ADMIN_TOKEN`: Your admin token for the API
+
+The console supports two modes for API configuration:
+
+**Option 1: Multiple API Domains (Recommended)**
+
+Use `API_TARGETS` to configure multiple backend API domains with a whitelist-based selection:
+
+```env
+API_TARGETS=alias1:https://api1.com,alias2:https://api2.com
+```
+
+- Format: `alias:url` or `alias|label:url` for custom display labels
+- Multiple targets separated by commas
+- Users can select the target API from a dropdown in the console UI
+- Example: `API_TARGETS=prod:https://api.prod.com,staging|Staging API:https://api.staging.com`
+- Security: Only whitelisted domains can be used (prevents SSRF)
+- If only one target is configured, it's auto-selected
+- If multiple targets are configured, a dropdown appears in the UI
+
+**Option 2: Single API Domain (Legacy)**
+
+For backward compatibility, you can use the single API configuration:
+
+```env
+API_BASE_URL=https://api.link.microbin.dev
+```
+
+This mode is used automatically if `API_TARGETS` is not set.
+
+**Admin Token:**
+
+- `ADMIN_TOKEN`: Your admin token for API authentication (required, kept server-side only)
 
 **Public Configuration:**
 - `NEXT_PUBLIC_REDIRECT_BASE_URL`: The base URL for generated short links (e.g., `https://link.microbin.dev`)

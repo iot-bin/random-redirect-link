@@ -1,11 +1,16 @@
 'use client';
 
-import { useMemo, useState } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 import { useRouter } from 'next/navigation';
 
 type CreateResponse =
     | { path: string; targetUrl: string }
     | { error: string; detail?: string };
+
+type ApiTargetOption = {
+  alias: string;
+  label: string;
+};
 
 function normalizePath(input: string) {
   // English comment: normalize user input path
@@ -19,6 +24,9 @@ export default function Home() {
   const router = useRouter();
   const [path, setPath] = useState('hello3');
   const [targetUrl, setTargetUrl] = useState('https://example.com');
+  const [apiTarget, setApiTarget] = useState('');
+  const [apiTargets, setApiTargets] = useState<ApiTargetOption[]>([]);
+  const [targetsLoading, setTargetsLoading] = useState(true);
 
   const [loading, setLoading] = useState(false);
   const [resp, setResp] = useState<CreateResponse | null>(null);
@@ -29,6 +37,31 @@ export default function Home() {
     const base = process.env.NEXT_PUBLIC_REDIRECT_BASE_URL || 'https://link.microbin.dev';
     return normalizedPath ? `${base}/${encodeURI(normalizedPath)}` : '';
   }, [normalizedPath]);
+
+  // Fetch available API targets on mount
+  useEffect(() => {
+    async function fetchTargets() {
+      try {
+        const res = await fetch('/api/targets');
+        if (res.ok) {
+          const data = await res.json();
+          const targets = data.targets || [];
+          setApiTargets(targets);
+          
+          // Auto-select if only one target available
+          if (targets.length === 1) {
+            setApiTarget(targets[0].alias);
+          }
+        }
+      } catch (err) {
+        console.error('Failed to fetch API targets:', err);
+      } finally {
+        setTargetsLoading(false);
+      }
+    }
+    
+    fetchTargets();
+  }, []);
 
   // Configurable site information
   const siteTitle = process.env.NEXT_PUBLIC_SITE_TITLE || 'Microbin Console';
@@ -63,10 +96,20 @@ export default function Home() {
 
     setLoading(true);
     try {
+      const requestBody: { path: string; targetUrl: string; apiTarget?: string } = {
+        path: normalizedPath,
+        targetUrl: targetUrl.trim(),
+      };
+      
+      // Include apiTarget if multiple targets available
+      if (apiTargets.length > 1 && apiTarget) {
+        requestBody.apiTarget = apiTarget;
+      }
+      
       const r = await fetch('/api/links', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ path: normalizedPath, targetUrl: targetUrl.trim() }),
+        body: JSON.stringify(requestBody),
       });
 
       const data = (await r.json().catch(() => ({}))) as CreateResponse;
@@ -151,6 +194,32 @@ export default function Home() {
                   {urlError ? <div style={styles.errorText}>{urlError}</div> : null}
                 </label>
               </div>
+
+              {apiTargets.length > 1 ? (
+                <div style={styles.row}>
+                  <label style={styles.label}>
+                    API 域名/管理端
+                    <select
+                        value={apiTarget}
+                        onChange={(e) => setApiTarget(e.target.value)}
+                        style={styles.select}
+                        required
+                    >
+                      <option value="" disabled>
+                        -- 请选择 API 域名 --
+                      </option>
+                      {apiTargets.map((t) => (
+                        <option key={t.alias} value={t.alias}>
+                          {t.label}
+                        </option>
+                      ))}
+                    </select>
+                    <div style={styles.hint}>
+                      选择要创建短链接的后端 API 服务
+                    </div>
+                  </label>
+                </div>
+              ) : null}
 
               <div style={styles.actions}>
                 <button type="submit" disabled={loading} style={styles.primaryBtn}>
@@ -267,6 +336,16 @@ const styles: Record<string, React.CSSProperties> = {
     background: 'rgba(0,0,0,0.25)',
     color: '#e8eaf0',
     outline: 'none',
+  },
+  select: {
+    width: '100%',
+    padding: '10px 12px',
+    borderRadius: 10,
+    border: '1px solid rgba(255,255,255,0.12)',
+    background: 'rgba(0,0,0,0.25)',
+    color: '#e8eaf0',
+    outline: 'none',
+    cursor: 'pointer',
   },
   hint: { color: '#aab2c5', fontSize: 12, lineHeight: 1.5 },
   code: {

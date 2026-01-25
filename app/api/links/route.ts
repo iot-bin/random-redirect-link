@@ -1,4 +1,5 @@
 import { NextResponse } from 'next/server';
+import { getApiTarget, getApiTargets } from '@/lib/api-targets';
 
 function normalizePath(input: string): string {
     // English comments: normalize and validate path
@@ -9,12 +10,11 @@ function normalizePath(input: string): string {
 }
 
 export async function POST(req: Request) {
-    const API_BASE_URL = process.env.API_BASE_URL; // e.g. https://api.link.microbin.dev
     const ADMIN_TOKEN = process.env.ADMIN_TOKEN;   // secret token
 
-    if (!API_BASE_URL || !ADMIN_TOKEN) {
+    if (!ADMIN_TOKEN) {
         return NextResponse.json(
-            { error: 'Server is not configured (missing API_BASE_URL or ADMIN_TOKEN).' },
+            { error: 'Server is not configured (missing ADMIN_TOKEN).' },
             { status: 500 }
         );
     }
@@ -22,6 +22,7 @@ export async function POST(req: Request) {
     const body = await req.json().catch(() => ({}));
     const path = normalizePath(String(body?.path ?? ''));
     const targetUrl = String(body?.targetUrl ?? '').trim();
+    const apiTarget = String(body?.apiTarget ?? '').trim();
 
     if (!path) {
         return NextResponse.json({ error: 'path is required' }, { status: 400 });
@@ -30,8 +31,36 @@ export async function POST(req: Request) {
         return NextResponse.json({ error: 'targetUrl must start with http(s)://' }, { status: 400 });
     }
 
-    // Forward request to AWS Admin API
-    const upstream = await fetch(`${API_BASE_URL}/links`, {
+    // Determine which API target to use
+    const targets = getApiTargets();
+    
+    if (targets.size === 0) {
+        return NextResponse.json(
+            { error: 'Server is not configured (no API targets available).' },
+            { status: 500 }
+        );
+    }
+
+    let apiBaseUrl: string;
+    
+    if (apiTarget) {
+        // Whitelist validation: only allow configured aliases
+        const target = getApiTarget(apiTarget);
+        if (!target) {
+            return NextResponse.json(
+                { error: 'Invalid apiTarget. Must be one of the configured aliases.' },
+                { status: 400 }
+            );
+        }
+        apiBaseUrl = target.baseUrl;
+    } else {
+        // No apiTarget specified: use first available target (backward compatibility)
+        const firstTarget = Array.from(targets.values())[0];
+        apiBaseUrl = firstTarget.baseUrl;
+    }
+
+    // Forward request to selected Admin API
+    const upstream = await fetch(`${apiBaseUrl}/links`, {
         method: 'POST',
         headers: {
             'Content-Type': 'application/json',
