@@ -26,7 +26,6 @@ export default function Home() {
   const [targetUrl, setTargetUrl] = useState('https://example.com');
   const [apiTarget, setApiTarget] = useState('');
   const [apiTargets, setApiTargets] = useState<ApiTargetOption[]>([]);
-  const [targetsLoading, setTargetsLoading] = useState(true);
 
   const [loading, setLoading] = useState(false);
   const [resp, setResp] = useState<CreateResponse | null>(null);
@@ -55,8 +54,6 @@ export default function Home() {
         }
       } catch (err) {
         console.error('Failed to fetch API targets:', err);
-      } finally {
-        setTargetsLoading(false);
       }
     }
     

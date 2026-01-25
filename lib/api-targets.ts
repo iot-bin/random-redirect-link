@@ -24,18 +24,17 @@ export function parseApiTargets(envValue?: string): Map<string, ApiTarget> {
   const entries = envValue.split(',').map(s => s.trim()).filter(Boolean);
   
   for (const entry of entries) {
-    // Split by last colon to handle URLs with protocol
-    const lastColonIndex = entry.lastIndexOf(':');
-    if (lastColonIndex === -1) continue;
+    // Match pattern: alias[:label]:url where url starts with http:// or https://
+    // Use regex to extract components properly
+    const match = entry.match(/^([^:]+):(https?:\/\/.+)$/);
     
-    const aliasAndLabel = entry.substring(0, lastColonIndex);
-    const url = entry.substring(lastColonIndex + 1);
-    
-    // Validate URL format
-    if (!(url.startsWith('https://') || url.startsWith('http://'))) {
-      console.warn(`Invalid URL in API_TARGETS: ${url}`);
+    if (!match) {
+      console.warn(`Invalid format in API_TARGETS: ${entry}`);
       continue;
     }
+    
+    const aliasAndLabel = match[1];
+    const url = match[2];
     
     // Parse alias and optional label
     let alias: string;
