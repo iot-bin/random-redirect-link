@@ -64,3 +64,21 @@ button.logout-btn {
     justify-content: center;
   }
 }
+
+/* Prevent horizontal overflow on mobile */
+* {
+  box-sizing: border-box;
+}
+
+/* Ensure body doesn't overflow */
+body {
+  overflow-x: hidden;
+}
+
+/* Global mobile overflow prevention for URLs */
+@media (max-width: 768px) {
+  code, a, pre {
+    overflow-wrap: anywhere;
+    word-break: break-word;
+  }
+}
