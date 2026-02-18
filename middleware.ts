@@ -9,8 +9,14 @@ export function middleware(request: NextRequest) {
         return NextResponse.next();
     }
 
-    // Allow static files
-    if (pathname.startsWith('/_next') || pathname.startsWith('/favicon.ico')) {
+    // Allow static files (public assets like favicons, logos, icons)
+    if (pathname.startsWith('/_next') || 
+        pathname.startsWith('/favicon') || 
+        pathname.startsWith('/apple-touch-icon') ||
+        pathname.startsWith('/android-chrome-') ||
+        pathname.startsWith('/site.webmanifest') ||
+        pathname.startsWith('/logo.webp') ||
+        pathname.match(/\/(file|globe|next|vercel|window)\.svg$/)) {
         return NextResponse.next();
     }
 
@@ -31,8 +37,7 @@ export const config = {
          * Match all request paths except for the ones starting with:
          * - _next/static (static files)
          * - _next/image (image optimization files)
-         * - favicon.ico (favicon file)
          */
-        '/((?!_next/static|_next/image|favicon.ico).*)',
+        '/((?!_next/static|_next/image).*)',
     ],
 };

@@ -47,7 +47,10 @@ export default function LoginPage() {
     <div style={styles.page}>
       <div style={styles.container}>
         <div style={styles.card}>
-          <h1 style={styles.h1}>Microbin Console</h1>
+          <div style={styles.titleContainer}>
+            <img src="/logo.webp" alt="" style={styles.logo} />
+            <h1 style={styles.h1}>Microbin Console</h1>
+          </div>
           <p style={styles.sub}>请输入密码以继续</p>
           
           <form onSubmit={onLogin} style={styles.form}>
@@ -97,11 +100,22 @@ const styles: Record<string, React.CSSProperties> = {
     boxShadow: '0 10px 30px rgba(0,0,0,0.35)',
     backdropFilter: 'blur(8px)',
   },
+  titleContainer: {
+    display: 'flex',
+    flexDirection: 'column',
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: 12,
+  },
+  logo: {
+    width: 36,
+    height: 36,
+    borderRadius: 8,
+  },
   h1: { 
     margin: 0, 
     fontSize: 28, 
     letterSpacing: 0.2,
-    textAlign: 'center',
   },
   sub: { 
     margin: '8px 0 24px', 
