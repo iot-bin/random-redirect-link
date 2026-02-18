@@ -69,8 +69,8 @@ button.logout-btn {
     display: none;
   }
 
-  /* Hide page subtitle on mobile in post-login page header */
-  header .page-subtitle {
+  /* Hide page subtitle on mobile */
+  .page-subtitle {
     display: none;
   }
 
