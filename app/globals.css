@@ -68,6 +68,40 @@ button.logout-btn {
   header .page-title {
     display: none;
   }
+
+  /* Hide page subtitle on mobile */
+  .page-subtitle {
+    display: none;
+  }
+
+  /* Mobile header layout adjustments */
+  header {
+    align-items: flex-start !important;
+  }
+
+  /* Position headerRight at top right, keeping domain + logout on same line */
+  header > div:nth-child(2) {
+    position: absolute;
+    top: 24px;
+    right: 24px;
+    display: flex !important;
+    flex-wrap: nowrap !important;
+    align-items: center !important;
+    gap: 8px !important;
+    white-space: nowrap !important;
+  }
+
+  /* Make headerLeft take full width and wrap content */
+  header > div:first-child {
+    width: 100%;
+    padding-right: 120px; /* Space for headerRight */
+  }
+
+  /* Title/subtitle container below logo on mobile */
+  header > div:first-child > div {
+    flex: 0 0 100%;
+    margin-left: 0;
+  }
 }
 
 /* Prevent horizontal overflow on mobile */
