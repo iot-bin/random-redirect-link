@@ -400,6 +400,7 @@ const styles: Record<string, React.CSSProperties> = {
     gap: 12,
     minWidth: 0,
     flex: '1 1 auto',
+    flexWrap: 'wrap',
   },
   logo: {
     width: 40,
