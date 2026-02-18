@@ -39,7 +39,6 @@ function normalizePath(input: string) {
 }
 
 // Read branding configuration from environment variables at module level
-const SITE_TITLE = process.env.NEXT_PUBLIC_SITE_TITLE || process.env.SITE_TITLE || 'Microbin Console';
 const SITE_SUBTITLE = process.env.NEXT_PUBLIC_SITE_SUBTITLE || process.env.SITE_SUBTITLE || '创建自定义路径短链接（跳转）';
 
 export default function Home() {
@@ -182,9 +181,11 @@ export default function Home() {
       <div style={styles.page}>
         <div style={styles.container}>
           <header style={styles.header}>
-            <div>
-              <h1 style={styles.h1}>{SITE_TITLE}</h1>
-              <p style={styles.sub}>{SITE_SUBTITLE}</p>
+            <div style={styles.headerLeft}>
+              <img src="/logo.webp" alt="Logo" style={styles.logo} />
+              <div>
+                <p style={styles.sub}>{SITE_SUBTITLE}</p>
+              </div>
             </div>
             <div style={styles.headerRight}>
               {selectedTarget ? (
@@ -387,10 +388,23 @@ const styles: Record<string, React.CSSProperties> = {
   header: {
     display: 'flex',
     justifyContent: 'space-between',
-    alignItems: 'baseline',
+    alignItems: 'center',
     gap: 12,
     marginBottom: 16,
     flexWrap: 'wrap',
+  },
+  headerLeft: {
+    display: 'flex',
+    alignItems: 'center',
+    gap: 12,
+    minWidth: 0,
+    flex: '1 1 auto',
+  },
+  logo: {
+    width: 40,
+    height: 40,
+    borderRadius: 8,
+    flexShrink: 0,
   },
   headerRight: {
     display: 'flex',
@@ -399,7 +413,6 @@ const styles: Record<string, React.CSSProperties> = {
     minWidth: 0,
     flex: '0 1 auto',
   },
-  h1: { margin: 0, fontSize: 28, letterSpacing: 0.2 },
   sub: { margin: '6px 0 0', color: '#aab2c5', fontSize: 14 },
   card: {
     background: 'rgba(255,255,255,0.06)',
