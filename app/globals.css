@@ -64,8 +64,8 @@ button.logout-btn {
     justify-content: center;
   }
 
-  /* Hide page title on mobile in post-login page */
-  .page-title {
+  /* Hide page title on mobile in post-login page header */
+  header .page-title {
     display: none;
   }
 }
