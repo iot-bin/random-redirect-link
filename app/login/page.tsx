@@ -108,8 +108,8 @@ const styles: Record<string, React.CSSProperties> = {
     gap: 12,
   },
   logo: {
-    width: 36,
-    height: 36,
+    width: 40,
+    height: 40,
     borderRadius: 8,
   },
   h1: { 

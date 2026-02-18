@@ -182,7 +182,7 @@ export default function Home() {
         <div style={styles.container}>
           <header style={styles.header}>
             <div style={styles.headerLeft}>
-              <img src="/logo.webp" alt="Microbin Console" style={styles.logo} />
+              <img src="/logo.webp" alt="Microbin Console" className="logo" style={styles.logo} />
               <div>
                 <h1 className="page-title" style={styles.h1}>Microbin Console</h1>
                 <p className="page-subtitle" style={styles.sub}>{SITE_SUBTITLE}</p>
