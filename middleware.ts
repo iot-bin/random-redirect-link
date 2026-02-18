@@ -9,14 +9,14 @@ export function middleware(request: NextRequest) {
         return NextResponse.next();
     }
 
-    // Allow static files
+    // Allow static files (public assets like favicons, logos, icons)
     if (pathname.startsWith('/_next') || 
         pathname.startsWith('/favicon') || 
-        pathname.startsWith('/logo.') ||
         pathname.startsWith('/apple-touch-icon') ||
         pathname.startsWith('/android-chrome-') ||
         pathname.startsWith('/site.webmanifest') ||
-        pathname.match(/\.(svg|png|jpg|jpeg|gif|webp|ico)$/)) {
+        pathname.startsWith('/logo.webp') ||
+        pathname.match(/\/(file|globe|next|vercel|window)\.svg$/)) {
         return NextResponse.next();
     }
 
