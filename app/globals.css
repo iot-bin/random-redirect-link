@@ -69,6 +69,11 @@ button.logout-btn {
     display: none;
   }
 
+  /* Hide page subtitle on mobile in post-login page header */
+  header .page-subtitle {
+    display: none;
+  }
+
   /* Mobile header layout adjustments */
   header {
     align-items: flex-start !important;
