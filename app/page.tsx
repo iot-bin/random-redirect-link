@@ -403,8 +403,8 @@ const styles: Record<string, React.CSSProperties> = {
     flexWrap: 'wrap',
   },
   logo: {
-    width: 40,
-    height: 40,
+    width: 64,
+    height: 64,
     borderRadius: 8,
     flexShrink: 0,
   },
