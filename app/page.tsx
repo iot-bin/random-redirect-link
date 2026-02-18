@@ -184,6 +184,7 @@ export default function Home() {
             <div style={styles.headerLeft}>
               <img src="/logo.webp" alt="Microbin Console" style={styles.logo} />
               <div>
+                <h1 className="page-title" style={styles.h1}>Microbin Console</h1>
                 <p style={styles.sub}>{SITE_SUBTITLE}</p>
               </div>
             </div>
@@ -413,7 +414,8 @@ const styles: Record<string, React.CSSProperties> = {
     minWidth: 0,
     flex: '0 1 auto',
   },
-  sub: { margin: '6px 0 0', color: '#aab2c5', fontSize: 14 },
+  h1: { margin: 0, fontSize: 24, letterSpacing: 0.2 },
+  sub: { margin: '4px 0 0', color: '#aab2c5', fontSize: 14 },
   card: {
     background: 'rgba(255,255,255,0.06)',
     border: '1px solid rgba(255,255,255,0.10)',

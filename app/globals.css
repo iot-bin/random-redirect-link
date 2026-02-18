@@ -63,6 +63,11 @@ button.logout-btn {
     min-height: 44px;
     justify-content: center;
   }
+
+  /* Hide page title on mobile in post-login page */
+  .page-title {
+    display: none;
+  }
 }
 
 /* Prevent horizontal overflow on mobile */

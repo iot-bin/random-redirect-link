@@ -102,6 +102,7 @@ const styles: Record<string, React.CSSProperties> = {
   },
   titleContainer: {
     display: 'flex',
+    flexDirection: 'column',
     alignItems: 'center',
     justifyContent: 'center',
     gap: 12,
