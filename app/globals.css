@@ -1,8 +1,25 @@
 @import "tailwindcss";
 
 :root {
-  --background: #ffffff;
-  --foreground: #171717;
+  --background: #000000;
+  --foreground: #ededed;
+  --surface: #0a0a0a;
+  --surface-raised: #111111;
+  --border: #333333;
+  --border-subtle: #1a1a1a;
+  --text-primary: #ededed;
+  --text-secondary: #888888;
+  --text-placeholder: #555555;
+  --accent: #ffffff;
+  --accent-fg: #000000;
+  --blue: #0070f3;
+  --blue-hover: #0060d3;
+  --success-bg: rgba(0,212,136,0.08);
+  --success-border: rgba(0,212,136,0.25);
+  --success-text: #3dcfa5;
+  --error-bg: rgba(255,80,80,0.08);
+  --error-border: rgba(255,80,80,0.25);
+  --error-text: #ff6b6b;
 }
 
 @theme inline {
@@ -12,33 +29,40 @@
   --font-mono: var(--font-geist-mono);
 }
 
-@media (prefers-color-scheme: dark) {
-  :root {
-    --background: #0a0a0a;
-    --foreground: #ededed;
-  }
+html, body {
+  box-sizing: border-box;
+  overflow-x: hidden;
 }
 
 body {
   background: var(--background);
-  color: var(--foreground);
-  font-family: Arial, Helvetica, sans-serif;
+  color: var(--text-primary);
+  font-family: var(--font-geist-sans), -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
 }
 
-/* Logout button responsive styles */
+/* Logout button */
 button.logout-btn {
   display: inline-flex;
   align-items: center;
   gap: 6px;
-  padding: 8px 12px;
-  min-height: 36px;
-  border-radius: 8px;
-  border: 1px solid rgba(255,255,255,0.12);
-  background: rgba(255,255,255,0.06);
-  color: #e8eaf0;
+  padding: 6px 12px;
+  min-height: 32px;
+  border-radius: 6px;
+  border: 1px solid var(--border);
+  background: transparent;
+  color: var(--text-secondary);
   cursor: pointer;
   font-size: 12px;
+  font-family: inherit;
   white-space: nowrap;
+  transition: color 0.15s ease, border-color 0.15s ease;
+}
+
+button.logout-btn:hover {
+  color: var(--text-primary);
+  border-color: #555555;
 }
 
 .logout-icon {
@@ -51,39 +75,35 @@ button.logout-btn {
   display: inline;
 }
 
-/* Mobile optimization: hide text, show only icon */
+/* Mobile optimization */
 @media (max-width: 520px) {
   .logout-text {
     display: none;
   }
-  
+
   button.logout-btn {
-    padding: 10px;
-    min-width: 44px;
-    min-height: 44px;
+    padding: 8px;
+    min-width: 36px;
+    min-height: 36px;
     justify-content: center;
   }
 
-  /* Hide page title on mobile in post-login page header */
   header .page-title {
     display: none;
   }
 
-  /* Hide page subtitle on mobile */
   .page-subtitle {
     display: none;
   }
 
-  /* Mobile header layout adjustments */
   header {
     align-items: flex-start !important;
   }
 
-  /* Position headerRight at top right, keeping domain + logout on same line */
   header > div:nth-child(2) {
     position: absolute;
-    top: 24px;
-    right: 24px;
+    top: 20px;
+    right: 20px;
     display: flex !important;
     flex-wrap: nowrap !important;
     align-items: center !important;
@@ -91,21 +111,13 @@ button.logout-btn {
     white-space: nowrap !important;
   }
 
-  /* Make headerLeft take full width and wrap content */
   header > div:first-child {
     width: 100%;
-    padding-right: 120px; /* Space for headerRight */
+    padding-right: 120px;
   }
 
-  /* Title/subtitle container below logo on mobile */
   header > div:first-child > div {
     flex: 0 0 100%;
     margin-left: 0;
   }
-}
-
-/* Prevent horizontal overflow on mobile */
-html, body {
-  box-sizing: border-box;
-  overflow-x: hidden;
 }
