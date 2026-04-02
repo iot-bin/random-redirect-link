@@ -1,7 +1,8 @@
 'use client';
 
-import { useEffect, useMemo, useState } from 'react';
+import { useEffect, useMemo, useRef, useState } from 'react';
 import { useRouter } from 'next/navigation';
+import { QRCodeSVG } from 'qrcode.react';
 
 type CreateResponse =
     | {
@@ -171,10 +172,26 @@ export default function Home() {
     setTimeout(() => setCopied(false), 1200);
   }
 
+  const qrRef = useRef<SVGSVGElement>(null);
+
   async function onLogout() {
     await fetch('/api/auth/logout', { method: 'POST' });
     router.push('/login');
     router.refresh();
+  }
+
+  function onDownloadQR() {
+    const svg = qrRef.current;
+    if (!svg) return;
+    const serializer = new XMLSerializer();
+    const svgStr = serializer.serializeToString(svg);
+    const blob = new Blob([svgStr], { type: 'image/svg+xml' });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = 'qrcode.svg';
+    a.click();
+    URL.revokeObjectURL(url);
   }
 
   return (
@@ -363,6 +380,16 @@ export default function Home() {
                           {copied ? '已复制' : '复制短链'}
                         </button>
                       </div>
+
+                      <div style={styles.qrSection}>
+                        <div style={styles.k}>二维码</div>
+                        <div style={styles.qrWrapper}>
+                          <QRCodeSVG ref={qrRef} value={shortUrl} size={160} bgColor="#ffffff" fgColor="#000000" level="M" />
+                        </div>
+                        <button type="button" onClick={onDownloadQR} style={styles.secondaryBtn}>
+                          下载二维码
+                        </button>
+                      </div>
                     </div>
                 )}
               </section>
@@ -535,4 +562,6 @@ const styles: Record<string, React.CSSProperties> = {
   },
   footer: { marginTop: 18, padding: 6 },
   footerText: { color: '#7f8aa6', fontSize: 12 },
+  qrSection: { marginTop: 16, display: 'flex', flexDirection: 'column', alignItems: 'flex-start', gap: 10 },
+  qrWrapper: { padding: 12, background: '#ffffff', borderRadius: 10, display: 'inline-block' },
 };
