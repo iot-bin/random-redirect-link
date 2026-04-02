@@ -190,7 +190,9 @@ export default function Home() {
     const a = document.createElement('a');
     a.href = url;
     a.download = 'qrcode.svg';
+    document.body.appendChild(a);
     a.click();
+    document.body.removeChild(a);
     URL.revokeObjectURL(url);
   }
 
@@ -562,6 +564,6 @@ const styles: Record<string, React.CSSProperties> = {
   },
   footer: { marginTop: 18, padding: 6 },
   footerText: { color: '#7f8aa6', fontSize: 12 },
-  qrSection: { marginTop: 16, display: 'flex', flexDirection: 'column', alignItems: 'flex-start', gap: 10 },
+  qrSection: { marginTop: 16, display: 'flex', flexDirection: 'column' as const, alignItems: 'flex-start', gap: 10 },
   qrWrapper: { padding: 12, background: '#ffffff', borderRadius: 10, display: 'inline-block' },
 };
