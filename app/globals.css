@@ -1,14 +1,42 @@
 @import "tailwindcss";
 
+/* ── Light theme (default) ───────────────────────────────── */
 :root {
+  --background: #ffffff;
+  --foreground: #111111;
+  --surface: #fafafa;
+  --surface-raised: #f5f5f5;
+  --border: #e5e5e5;
+  --border-subtle: #f0f0f0;
+  --border-hover: #999999;
+  --text-primary: #111111;
+  --text-secondary: #666666;
+  --text-muted: #999999;
+  --text-placeholder: #aaaaaa;
+  --accent: #000000;
+  --accent-fg: #ffffff;
+  --blue: #0070f3;
+  --blue-hover: #0060d3;
+  --success-bg: rgba(0,180,120,0.08);
+  --success-border: rgba(0,180,120,0.25);
+  --success-text: #0a9c6d;
+  --error-bg: rgba(220,50,50,0.08);
+  --error-border: rgba(220,50,50,0.25);
+  --error-text: #cc3333;
+}
+
+/* ── Dark theme ──────────────────────────────────────────── */
+[data-theme="dark"] {
   --background: #000000;
   --foreground: #ededed;
   --surface: #0a0a0a;
   --surface-raised: #111111;
   --border: #333333;
   --border-subtle: #1a1a1a;
+  --border-hover: #555555;
   --text-primary: #ededed;
   --text-secondary: #888888;
+  --text-muted: #444444;
   --text-placeholder: #555555;
   --accent: #ffffff;
   --accent-fg: #000000;
@@ -42,7 +70,7 @@ body {
   -moz-osx-font-smoothing: grayscale;
 }
 
-/* Logout button */
+/* ── Logout button ───────────────────────────────────────── */
 button.logout-btn {
   display: inline-flex;
   align-items: center;
@@ -62,7 +90,37 @@ button.logout-btn {
 
 button.logout-btn:hover {
   color: var(--text-primary);
-  border-color: #555555;
+  border-color: var(--border-hover);
+}
+
+/* ── Theme toggle button ─────────────────────────────────── */
+.theme-toggle-btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 32px;
+  height: 32px;
+  border-radius: 6px;
+  border: 1px solid var(--border);
+  background: transparent;
+  color: var(--text-secondary);
+  cursor: pointer;
+  padding: 0;
+  flex-shrink: 0;
+  transition: color 0.15s ease, border-color 0.15s ease;
+}
+
+.theme-toggle-btn:hover {
+  color: var(--text-primary);
+  border-color: var(--border-hover);
+}
+
+/* Floating variant used on login page */
+.theme-toggle-btn.theme-toggle-fixed {
+  position: fixed;
+  top: 16px;
+  right: 16px;
+  z-index: 100;
 }
 
 .logout-icon {

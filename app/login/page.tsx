@@ -2,6 +2,7 @@
 
 import { useState } from 'react';
 import { useRouter } from 'next/navigation';
+import { ThemeToggle } from '../components/ThemeProvider';
 
 export default function LoginPage() {
   const router = useRouter();
@@ -44,6 +45,7 @@ export default function LoginPage() {
 
   return (
     <div style={styles.page}>
+      <ThemeToggle extraClass="theme-toggle-fixed" />
       <div style={styles.container}>
         <div style={styles.logoRow}>
           <img src="/logo.webp" alt="Microbin Console" style={styles.logo} />
@@ -89,8 +91,8 @@ export default function LoginPage() {
 const styles: Record<string, React.CSSProperties> = {
   page: {
     minHeight: '100vh',
-    background: '#000000',
-    color: '#ededed',
+    background: 'var(--background)',
+    color: 'var(--text-primary)',
     display: 'flex',
     alignItems: 'center',
     justifyContent: 'center',
@@ -117,19 +119,19 @@ const styles: Record<string, React.CSSProperties> = {
     fontWeight: 600,
     letterSpacing: '-0.02em',
     textAlign: 'center',
-    color: '#ffffff',
+    color: 'var(--text-primary)',
   },
   sub: {
     margin: '0 0 32px',
-    color: '#888888',
+    color: 'var(--text-secondary)',
     fontSize: 14,
     textAlign: 'center',
     lineHeight: 1.5,
   },
   card: {
     width: '100%',
-    background: '#0a0a0a',
-    border: '1px solid #333333',
+    background: 'var(--surface)',
+    border: '1px solid var(--border)',
     borderRadius: 12,
     padding: '24px',
   },
@@ -146,16 +148,16 @@ const styles: Record<string, React.CSSProperties> = {
   fieldLabel: {
     fontSize: 13,
     fontWeight: 500,
-    color: '#ededed',
+    color: 'var(--text-primary)',
     letterSpacing: '0.01em',
   },
   input: {
     width: '100%',
     padding: '9px 12px',
     borderRadius: 6,
-    border: '1px solid #333333',
-    background: '#000000',
-    color: '#ededed',
+    border: '1px solid var(--border)',
+    background: 'var(--background)',
+    color: 'var(--text-primary)',
     outline: 'none',
     fontSize: 14,
     boxSizing: 'border-box',
@@ -167,18 +169,18 @@ const styles: Record<string, React.CSSProperties> = {
     gap: 8,
     padding: '10px 12px',
     borderRadius: 6,
-    background: 'rgba(255,80,80,0.08)',
-    border: '1px solid rgba(255,80,80,0.25)',
-    color: '#ff6b6b',
+    background: 'var(--error-bg)',
+    border: '1px solid var(--error-border)',
+    color: 'var(--error-text)',
     fontSize: 13,
   },
   primaryBtn: {
     width: '100%',
     padding: '9px 16px',
     borderRadius: 6,
-    border: '1px solid #ffffff',
-    background: '#ffffff',
-    color: '#000000',
+    border: '1px solid var(--accent)',
+    background: 'var(--accent)',
+    color: 'var(--accent-fg)',
     cursor: 'pointer',
     fontSize: 14,
     fontWeight: 500,
@@ -187,7 +189,7 @@ const styles: Record<string, React.CSSProperties> = {
   },
   footer: {
     marginTop: 32,
-    color: '#444444',
+    color: 'var(--text-muted)',
     fontSize: 12,
     textAlign: 'center',
   },
