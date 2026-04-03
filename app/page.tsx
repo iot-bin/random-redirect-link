@@ -230,6 +230,7 @@ export default function Home() {
             </div>
           </header>
 
+          <div className="content-grid">
           <section style={styles.card}>
             <p style={styles.sectionTitle}>创建短链</p>
             <form onSubmit={onCreate} style={styles.form}>
@@ -336,7 +337,7 @@ export default function Home() {
           </section>
 
           {resp ? (
-              <section style={{ ...styles.card, marginTop: 12 }}>
+              <section style={styles.card}>
                 {'error' in resp ? (
                     <div>
                       <div style={styles.badgeError}>
@@ -405,6 +406,7 @@ export default function Home() {
                 )}
               </section>
           ) : null}
+          </div>
 
           <footer style={styles.footer}>
             <span style={styles.footerText}>
@@ -423,7 +425,7 @@ const styles: Record<string, React.CSSProperties> = {
     color: 'var(--text-primary)',
     padding: '0 0 48px',
   },
-  container: { maxWidth: 680, margin: '0 auto', padding: '0 20px' },
+  container: { maxWidth: 1100, margin: '0 auto', padding: '0 20px' },
   header: {
     display: 'flex',
     justifyContent: 'space-between',

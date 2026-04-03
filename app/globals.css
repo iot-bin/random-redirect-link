@@ -133,6 +133,27 @@ button.logout-btn:hover {
   display: inline;
 }
 
+/* ── Desktop two-column content layout ───────────────────── */
+.content-grid {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+@media (min-width: 800px) {
+  .content-grid {
+    display: grid;
+    grid-template-columns: 1fr 400px;
+    align-items: start;
+    gap: 20px;
+  }
+
+  /* When the result card is absent, let the form span full width */
+  .content-grid > :only-child {
+    grid-column: 1 / -1;
+  }
+}
+
 /* Mobile optimization */
 @media (max-width: 520px) {
   .logout-text {
