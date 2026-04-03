@@ -3,6 +3,7 @@
 import { useEffect, useMemo, useRef, useState } from 'react';
 import { useRouter } from 'next/navigation';
 import { QRCodeSVG } from 'qrcode.react';
+import { ThemeToggle } from './components/ThemeProvider';
 
 type CreateResponse =
     | {
@@ -215,9 +216,10 @@ export default function Home() {
               ) : (
                   <span style={styles.linkMuted}>Loading...</span>
               )}
+              <ThemeToggle />
               <button onClick={onLogout} className="logout-btn">
                 <span className="logout-icon">
-                  <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                  <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
                     <path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4" />
                     <polyline points="16 17 21 12 16 7" />
                     <line x1="21" y1="12" x2="9" y2="12" />
@@ -228,110 +230,106 @@ export default function Home() {
             </div>
           </header>
 
+          <div className="content-grid">
           <section style={styles.card}>
+            <p style={styles.sectionTitle}>创建短链</p>
             <form onSubmit={onCreate} style={styles.form}>
               {/* API Target Selector */}
               <div style={styles.row}>
-                <label style={styles.label}>
-                  API / 环境选择
-                  {loadingTargets ? (
-                      <div style={styles.hint}>加载中...</div>
-                  ) : apiTargets.length === 0 ? (
-                      <div style={styles.errorText}>
-                        未配置 API 目标。请在服务器端配置 API_TARGETS 环境变量。
-                      </div>
-                  ) : (
-                      <select
-                          value={selectedTargetId}
-                          onChange={(e) => setSelectedTargetId(e.target.value)}
-                          style={styles.select}
-                      >
-                        {apiTargets.map((target) => (
-                            <option key={target.id} value={target.id}>
-                              {target.name}
-                            </option>
-                        ))}
-                      </select>
-                  )}
-                  {selectedTarget && (
-                      <div style={styles.hint}>
-                        短链域名: {selectedTarget.redirectBaseUrl}
-                      </div>
-                  )}
-                  {targetError ? <div style={styles.errorText}>{targetError}</div> : null}
-                </label>
+                <span style={styles.fieldLabel}>API / 环境</span>
+                {loadingTargets ? (
+                    <div style={styles.hint}>加载中...</div>
+                ) : apiTargets.length === 0 ? (
+                    <div style={styles.errorText}>
+                      未配置 API 目标。请在服务器端配置 API_TARGETS 环境变量。
+                    </div>
+                ) : (
+                    <select
+                        value={selectedTargetId}
+                        onChange={(e) => setSelectedTargetId(e.target.value)}
+                        style={styles.select}
+                    >
+                      {apiTargets.map((target) => (
+                          <option key={target.id} value={target.id}>
+                            {target.name}
+                          </option>
+                      ))}
+                    </select>
+                )}
+                {selectedTarget ? (
+                    <div style={styles.hint}>短链域名：{selectedTarget.redirectBaseUrl}</div>
+                ) : null}
+                {targetError ? <div style={styles.errorText}>{targetError}</div> : null}
               </div>
 
               <div style={styles.row}>
-                <label style={styles.label}>
-                  Path
+                <span style={styles.fieldLabel}>Path</span>
+                <input
+                    value={path}
+                    onChange={(e) => setPath(e.target.value)}
+                    placeholder="hello 或 foo/bar"
+                    style={styles.input}
+                />
+                <div style={styles.hint}>
+                  生成链接：<code style={styles.code}>{shortUrl || '（请先输入 path）'}</code>
+                </div>
+                {pathError ? <div style={styles.errorText}>{pathError}</div> : null}
+              </div>
+
+              <div style={styles.row}>
+                <span style={styles.fieldLabel}>Target URL</span>
+                <input
+                    value={targetUrl}
+                    onChange={(e) => setTargetUrl(e.target.value)}
+                    placeholder="https://example.com/168.apk"
+                    style={styles.input}
+                />
+                {urlError ? <div style={styles.errorText}>{urlError}</div> : null}
+              </div>
+
+              <div style={styles.row}>
+                <label style={styles.checkboxRow}>
                   <input
-                      value={path}
-                      onChange={(e) => setPath(e.target.value)}
-                      placeholder="hello 或 foo/bar"
-                      style={styles.input}
+                      type="checkbox"
+                      checked={randomSubdomain}
+                      onChange={(e) => setRandomSubdomain(e.target.checked)}
+                      style={styles.checkbox}
                   />
-                  <div style={styles.hint}>
-                    生成链接： <code style={styles.code}>{shortUrl || '（请先输入 path）'}</code>
-                  </div>
-                  {pathError ? <div style={styles.errorText}>{pathError}</div> : null}
+                  <span style={styles.checkboxLabel}>每次访问随机二级域名（推荐用于分流 / 变更域名场景）</span>
                 </label>
-              </div>
 
-              <div style={styles.row}>
-                <label style={styles.label}>
-                  Target URL
-                  <input
-                      value={targetUrl}
-                      onChange={(e) => setTargetUrl(e.target.value)}
-                      placeholder="https://example.com/168.apk"
-                      style={styles.input}
-                  />
-                  {urlError ? <div style={styles.errorText}>{urlError}</div> : null}
-                </label>
-              </div>
+                {randomSubdomain ? (
+                    <div style={styles.numberInputRow}>
+                      <span style={styles.numberLabel}>随机长度</span>
+                      <input
+                          type="number"
+                          value={subdomainLength}
+                          min={3}
+                          max={32}
+                          onChange={(e) => setSubdomainLength(Number(e.target.value))}
+                          style={{ ...styles.input, width: 100 }}
+                      />
+                    </div>
+                ) : null}
 
-              {/* New: random subdomain controls */}
-              <div style={styles.row}>
-                <label style={styles.label}>
-                  <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
-                    <input
-                        type="checkbox"
-                        checked={randomSubdomain}
-                        onChange={(e) => setRandomSubdomain(e.target.checked)}
-                    />
-                    <span>每次访问随机二级域名（推荐用于分流/变更域名场景）</span>
-                  </div>
-
-                  {randomSubdomain ? (
-                      <div style={{ marginTop: 8, display: 'flex', gap: 10, alignItems: 'center' }}>
-                        <span style={{ color: '#aab2c5', fontSize: 12 }}>随机长度</span>
-                        <input
-                            type="number"
-                            value={subdomainLength}
-                            min={3}
-                            max={32}
-                            onChange={(e) => setSubdomainLength(Number(e.target.value))}
-                            style={{ ...styles.input, width: 140 }}
-                        />
-                      </div>
-                  ) : null}
-
-                  {randomError ? <div style={styles.errorText}>{randomError}</div> : null}
-                  <div style={styles.hint}>
-                    提示：为确保&ldquo;每次访问都不同&rdquo;，跳转会使用 302 并禁用缓存。
-                  </div>
-                </label>
+                {randomError ? <div style={styles.errorText}>{randomError}</div> : null}
+                <div style={styles.hint}>
+                  提示：为确保&ldquo;每次访问都不同&rdquo;，跳转会使用 302 并禁用缓存。
+                </div>
               </div>
 
               <div style={styles.actions}>
-                <button type="submit" disabled={loading || loadingTargets || apiTargets.length === 0} style={styles.primaryBtn}>
+                <button
+                    type="submit"
+                    disabled={loading || loadingTargets || apiTargets.length === 0}
+                    style={loading || loadingTargets || apiTargets.length === 0 ? styles.primaryBtnDisabled : styles.primaryBtn}
+                >
                   {loading ? '创建中...' : '创建短链'}
                 </button>
 
                 {shortUrl ? (
                     <button type="button" onClick={onCopy} style={styles.secondaryBtn}>
-                      {copied ? '已复制' : '复制短链'}
+                      {copied ? '✓ 已复制' : '复制短链'}
                     </button>
                 ) : null}
               </div>
@@ -339,18 +337,28 @@ export default function Home() {
           </section>
 
           {resp ? (
-              <section style={{ ...styles.card, marginTop: 16 }}>
+              <section style={styles.card}>
                 {'error' in resp ? (
                     <div>
-                      <div style={styles.badgeError}>创建失败</div>
+                      <div style={styles.badgeError}>
+                        <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
+                          <line x1="18" y1="6" x2="6" y2="18" /><line x1="6" y1="6" x2="18" y2="18" />
+                        </svg>
+                        创建失败
+                      </div>
                       <div style={styles.resultTitle}>{resp.error}</div>
                       {resp.detail ? <pre style={styles.pre}>{resp.detail}</pre> : null}
                       <div style={styles.hint}>如果提示 409，表示 path 已被占用。</div>
                     </div>
                 ) : (
                     <div>
-                      <div style={styles.badgeOk}>创建成功</div>
-                      <div style={styles.resultTitle}>你的短链已生成</div>
+                      <div style={styles.badgeOk}>
+                        <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
+                          <polyline points="20 6 9 17 4 12" />
+                        </svg>
+                        创建成功
+                      </div>
+                      <div style={styles.resultTitle}>短链已生成</div>
 
                       <div style={styles.kv}>
                         <div style={styles.k}>Short URL</div>
@@ -377,16 +385,18 @@ export default function Home() {
                         </div>
                       </div>
 
+                      <hr style={styles.divider} />
+
                       <div style={styles.actions}>
                         <button type="button" onClick={onCopy} style={styles.primaryBtn}>
-                          {copied ? '已复制' : '复制短链'}
+                          {copied ? '✓ 已复制' : '复制短链'}
                         </button>
                       </div>
 
                       <div style={styles.qrSection}>
-                        <div style={styles.k}>二维码</div>
+                        <span style={styles.k}>二维码</span>
                         <div style={styles.qrWrapper}>
-                          <QRCodeSVG ref={qrRef} value={shortUrl} size={160} bgColor="#ffffff" fgColor="#000000" level="M" />
+                          <QRCodeSVG ref={qrRef} value={shortUrl} size={150} bgColor="#ffffff" fgColor="#000000" level="M" />
                         </div>
                         <button type="button" onClick={onDownloadQR} style={styles.secondaryBtn}>
                           下载二维码
@@ -396,11 +406,12 @@ export default function Home() {
                 )}
               </section>
           ) : null}
+          </div>
 
           <footer style={styles.footer}>
-          <span style={styles.footerText}>
-            提示：随机二级域模式会禁用缓存以保证每次访问都随机，成本会比纯缓存 301 更高。
-          </span>
+            <span style={styles.footerText}>
+              提示：随机二级域模式会禁用缓存以保证每次访问都随机，成本会比纯缓存 301 更高。
+            </span>
           </footer>
         </div>
       </div>
@@ -410,160 +421,241 @@ export default function Home() {
 const styles: Record<string, React.CSSProperties> = {
   page: {
     minHeight: '100vh',
-    background: 'linear-gradient(180deg, #0b1020 0%, #070a12 60%, #05060a 100%)',
-    color: '#e8eaf0',
-    padding: 24,
+    background: 'var(--background)',
+    color: 'var(--text-primary)',
+    padding: '0 0 48px',
   },
-  container: { maxWidth: 820, margin: '0 auto' },
+  container: { maxWidth: 1100, margin: '0 auto', padding: '0 20px' },
   header: {
     display: 'flex',
     justifyContent: 'space-between',
     alignItems: 'center',
     gap: 12,
-    marginBottom: 16,
+    padding: '16px 0',
+    borderBottom: '1px solid var(--border-subtle)',
+    marginBottom: 32,
     flexWrap: 'wrap',
   },
   headerLeft: {
     display: 'flex',
     alignItems: 'center',
-    gap: 12,
+    gap: 10,
     minWidth: 0,
     flex: '1 1 auto',
     flexWrap: 'wrap',
   },
   logo: {
-    width: 40,
-    height: 40,
-    borderRadius: 8,
+    width: 28,
+    height: 28,
+    borderRadius: 6,
     flexShrink: 0,
   },
   headerRight: {
     display: 'flex',
     alignItems: 'center',
-    gap: 12,
+    gap: 10,
     minWidth: 0,
     flex: '0 1 auto',
   },
-  h1: { margin: 0, fontSize: 24, letterSpacing: 0.2 },
-  sub: { margin: '4px 0 0', color: '#aab2c5', fontSize: 14 },
+  h1: { margin: 0, fontSize: 15, fontWeight: 600, letterSpacing: '-0.01em', color: 'var(--text-primary)' },
+  sub: { margin: '2px 0 0', color: 'var(--text-secondary)', fontSize: 12 },
   card: {
-    background: 'rgba(255,255,255,0.06)',
-    border: '1px solid rgba(255,255,255,0.10)',
-    borderRadius: 14,
-    padding: 18,
-    boxShadow: '0 10px 30px rgba(0,0,0,0.35)',
-    backdropFilter: 'blur(8px)',
+    background: 'var(--surface)',
+    border: '1px solid var(--border)',
+    borderRadius: 10,
+    padding: '20px 20px',
   },
-  form: { display: 'grid', gap: 14 },
+  sectionTitle: {
+    fontSize: 13,
+    fontWeight: 600,
+    color: 'var(--text-secondary)',
+    letterSpacing: '0.06em',
+    textTransform: 'uppercase' as const,
+    marginBottom: 16,
+  },
+  form: { display: 'grid', gap: 16 },
   row: { display: 'grid', gap: 6 },
-  label: { display: 'grid', gap: 6, fontSize: 13, color: '#cfd6e6' },
+  fieldLabel: {
+    fontSize: 13,
+    fontWeight: 500,
+    color: 'var(--text-primary)',
+    letterSpacing: '0.01em',
+  },
   input: {
     width: '100%',
     maxWidth: '100%',
-    padding: '10px 12px',
-    borderRadius: 10,
-    border: '1px solid rgba(255,255,255,0.12)',
-    background: 'rgba(0,0,0,0.25)',
-    color: '#e8eaf0',
+    padding: '8px 11px',
+    borderRadius: 6,
+    border: '1px solid var(--border)',
+    background: 'var(--background)',
+    color: 'var(--text-primary)',
     outline: 'none',
+    fontSize: 13,
     boxSizing: 'border-box',
+    fontFamily: 'inherit',
   },
   select: {
     width: '100%',
     maxWidth: '100%',
-    padding: '10px 12px',
-    borderRadius: 10,
-    border: '1px solid rgba(255,255,255,0.12)',
-    background: 'rgba(0,0,0,0.25)',
-    color: '#e8eaf0',
+    padding: '8px 11px',
+    borderRadius: 6,
+    border: '1px solid var(--border)',
+    background: 'var(--background)',
+    color: 'var(--text-primary)',
     outline: 'none',
     cursor: 'pointer',
     boxSizing: 'border-box',
+    fontSize: 13,
+    fontFamily: 'inherit',
   },
-  hint: { color: '#aab2c5', fontSize: 12, lineHeight: 1.5 },
+  hint: { color: 'var(--text-secondary)', fontSize: 12, lineHeight: 1.5, marginTop: 4 },
   code: {
-    background: 'rgba(0,0,0,0.25)',
-    border: '1px solid rgba(255,255,255,0.10)',
+    fontFamily: 'var(--font-geist-mono), monospace',
+    background: 'var(--surface-raised)',
+    border: '1px solid var(--border)',
     padding: '2px 6px',
-    borderRadius: 8,
+    borderRadius: 4,
     overflowWrap: 'anywhere',
     wordBreak: 'break-word',
+    fontSize: 12,
+    color: 'var(--text-secondary)',
   },
-  errorText: { color: '#ff9aa2', fontSize: 12 },
-  actions: { display: 'flex', gap: 10, flexWrap: 'wrap', marginTop: 6 },
-  primaryBtn: {
-    padding: '10px 14px',
-    borderRadius: 10,
-    border: '1px solid rgba(255,255,255,0.12)',
-    background: 'linear-gradient(180deg, #3b82f6 0%, #2563eb 100%)',
-    color: 'white',
+  errorText: { color: 'var(--error-text)', fontSize: 12, marginTop: 2 },
+  checkboxRow: {
+    display: 'flex',
+    alignItems: 'center',
+    gap: 8,
     cursor: 'pointer',
+  },
+  checkbox: {
+    width: 14,
+    height: 14,
+    cursor: 'pointer',
+    accentColor: 'var(--accent)',
+    flexShrink: 0,
+  },
+  checkboxLabel: { fontSize: 13, color: 'var(--text-primary)', lineHeight: 1.4 },
+  numberInputRow: {
+    display: 'flex',
+    alignItems: 'center',
+    gap: 10,
+    marginTop: 10,
+  },
+  numberLabel: { color: 'var(--text-secondary)', fontSize: 12, whiteSpace: 'nowrap' as const },
+  actions: { display: 'flex', gap: 8, flexWrap: 'wrap', marginTop: 4 },
+  primaryBtn: {
+    padding: '8px 16px',
+    borderRadius: 6,
+    border: '1px solid var(--accent)',
+    background: 'var(--accent)',
+    color: 'var(--accent-fg)',
+    cursor: 'pointer',
+    fontSize: 13,
+    fontWeight: 500,
+    fontFamily: 'inherit',
+    letterSpacing: '0.01em',
+    whiteSpace: 'nowrap' as const,
+  },
+  primaryBtnDisabled: {
+    padding: '8px 16px',
+    borderRadius: 6,
+    border: '1px solid var(--border)',
+    background: 'var(--surface-raised)',
+    color: 'var(--text-secondary)',
+    cursor: 'not-allowed',
+    fontSize: 13,
+    fontWeight: 500,
+    fontFamily: 'inherit',
+    letterSpacing: '0.01em',
+    whiteSpace: 'nowrap' as const,
   },
   secondaryBtn: {
-    padding: '10px 14px',
-    borderRadius: 10,
-    border: '1px solid rgba(255,255,255,0.12)',
-    background: 'rgba(255,255,255,0.06)',
-    color: '#e8eaf0',
+    padding: '8px 16px',
+    borderRadius: 6,
+    border: '1px solid var(--border)',
+    background: 'transparent',
+    color: 'var(--text-primary)',
     cursor: 'pointer',
+    fontSize: 13,
+    fontFamily: 'inherit',
+    whiteSpace: 'nowrap' as const,
+  },
+  divider: {
+    border: 'none',
+    borderTop: '1px solid var(--border-subtle)',
+    margin: '20px 0',
   },
   badgeOk: {
-    display: 'inline-block',
-    padding: '2px 8px',
+    display: 'inline-flex',
+    alignItems: 'center',
+    gap: 5,
+    padding: '3px 10px',
     borderRadius: 999,
-    background: 'rgba(34,197,94,0.15)',
-    border: '1px solid rgba(34,197,94,0.35)',
-    color: '#7ee0a3',
-    fontSize: 12,
-    marginBottom: 10,
+    background: 'var(--success-bg)',
+    border: '1px solid var(--success-border)',
+    color: 'var(--success-text)',
+    fontSize: 11,
+    fontWeight: 500,
+    letterSpacing: '0.04em',
+    marginBottom: 14,
   },
   badgeError: {
-    display: 'inline-block',
-    padding: '2px 8px',
+    display: 'inline-flex',
+    alignItems: 'center',
+    gap: 5,
+    padding: '3px 10px',
     borderRadius: 999,
-    background: 'rgba(239,68,68,0.15)',
-    border: '1px solid rgba(239,68,68,0.35)',
-    color: '#ff9aa2',
-    fontSize: 12,
-    marginBottom: 10,
+    background: 'var(--error-bg)',
+    border: '1px solid var(--error-border)',
+    color: 'var(--error-text)',
+    fontSize: 11,
+    fontWeight: 500,
+    letterSpacing: '0.04em',
+    marginBottom: 14,
   },
-  resultTitle: { fontSize: 16, marginBottom: 10 },
+  resultTitle: { fontSize: 16, fontWeight: 600, marginBottom: 16, color: 'var(--text-primary)', letterSpacing: '-0.01em' },
   kv: {
     display: 'grid',
-    gridTemplateColumns: 'minmax(80px, 120px) 1fr',
-    gap: 10,
+    gridTemplateColumns: '100px 1fr',
+    gap: 8,
     alignItems: 'start',
     marginTop: 10,
   },
-  k: { color: '#aab2c5', fontSize: 12, paddingTop: 2 },
-  v: { 
-    fontSize: 14,
+  k: { color: 'var(--text-secondary)', fontSize: 12, paddingTop: 1, fontWeight: 500 },
+  v: {
+    fontSize: 13,
     minWidth: 0,
     overflowWrap: 'anywhere',
     wordBreak: 'break-word',
+    color: 'var(--text-primary)',
   },
-  link: { 
-    color: '#93c5fd', 
-    textDecoration: 'none',
+  link: {
+    color: 'var(--text-primary)',
+    textDecoration: 'underline',
+    textDecorationColor: 'var(--border)',
     overflowWrap: 'anywhere',
     wordBreak: 'break-word',
   },
-  linkMuted: { 
-    color: '#aab2c5', 
+  linkMuted: {
+    color: 'var(--text-secondary)',
     textDecoration: 'none',
     overflowWrap: 'anywhere',
     wordBreak: 'break-word',
+    fontSize: 12,
   },
   pre: {
     marginTop: 10,
-    padding: 12,
-    borderRadius: 10,
-    background: 'rgba(0,0,0,0.25)',
-    border: '1px solid rgba(255,255,255,0.10)',
+    padding: '10px 12px',
+    borderRadius: 6,
+    background: 'var(--surface)',
+    border: '1px solid var(--border)',
     overflow: 'auto',
+    fontSize: 12,
+    color: 'var(--text-secondary)',
+    fontFamily: 'var(--font-geist-mono), monospace',
   },
-  footer: { marginTop: 18, padding: 6 },
-  footerText: { color: '#7f8aa6', fontSize: 12 },
-  qrSection: { marginTop: 16, display: 'flex', flexDirection: 'column' as const, alignItems: 'flex-start', gap: 10 },
-  qrWrapper: { padding: 12, background: '#ffffff', borderRadius: 10, display: 'inline-block' },
+  footer: { marginTop: 32, padding: '0' },
+  footerText: { color: 'var(--text-muted)', fontSize: 12 },
+  qrSection: { marginTop: 18, display: 'flex', flexDirection: 'column' as const, alignItems: 'flex-start', gap: 12 },
+  qrWrapper: { padding: 10, background: '#ffffff', borderRadius: 8, display: 'inline-block' },
 };
