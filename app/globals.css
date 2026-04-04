@@ -70,6 +70,21 @@ body {
   -moz-osx-font-smoothing: grayscale;
 }
 
+/* ── Vercel-style sticky site header ────────────────────── */
+.site-header {
+  position: sticky;
+  top: 0;
+  z-index: 50;
+  background: rgba(255, 255, 255, 0.85);
+  backdrop-filter: saturate(180%) blur(8px);
+  -webkit-backdrop-filter: saturate(180%) blur(8px);
+  border-bottom: 1px solid var(--border-subtle);
+}
+
+[data-theme="dark"] .site-header {
+  background: rgba(0, 0, 0, 0.85);
+}
+
 /* ── Logout button ───────────────────────────────────────── */
 button.logout-btn {
   display: inline-flex;
@@ -148,9 +163,12 @@ button.logout-btn:hover {
     gap: 20px;
   }
 
-  /* When the result card is absent, let the form span full width */
+  /* When the result card is absent, center the form with a reasonable max-width */
   .content-grid > :only-child {
     grid-column: 1 / -1;
+    max-width: 640px;
+    width: 100%;
+    justify-self: center;
   }
 }
 
@@ -175,13 +193,13 @@ button.logout-btn:hover {
     display: none;
   }
 
-  header {
+  .header-inner {
     align-items: flex-start !important;
   }
 
-  header > div:nth-child(2) {
+  .header-right {
     position: absolute;
-    top: 20px;
+    top: 14px; /* vertically center 32px buttons inside the 60px header */
     right: 20px;
     display: flex !important;
     flex-wrap: nowrap !important;
@@ -190,12 +208,12 @@ button.logout-btn:hover {
     white-space: nowrap !important;
   }
 
-  header > div:first-child {
+  .header-left {
     width: 100%;
     padding-right: 120px;
   }
 
-  header > div:first-child > div {
+  .header-left > div {
     flex: 0 0 100%;
     margin-left: 0;
   }

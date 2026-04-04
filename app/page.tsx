@@ -199,16 +199,16 @@ export default function Home() {
 
   return (
       <div style={styles.page}>
-        <div style={styles.container}>
-          <header style={styles.header}>
-            <div style={styles.headerLeft}>
+        <header className="site-header">
+          <div className="header-inner" style={styles.headerInner}>
+            <div className="header-left" style={styles.headerLeft}>
               <img src="/logo.webp" alt="Microbin Console" style={styles.logo} />
               <div>
                 <h1 className="page-title" style={styles.h1}>Microbin Console</h1>
                 <p className="page-subtitle" style={styles.sub}>{SITE_SUBTITLE}</p>
               </div>
             </div>
-            <div style={styles.headerRight}>
+            <div className="header-right" style={styles.headerRight}>
               {selectedTarget ? (
                   <a href={selectedTarget.redirectBaseUrl} target="_blank" rel="noreferrer" style={styles.linkMuted}>
                     {selectedTarget.redirectBaseUrl.replace(/^https?:\/\//, '')}
@@ -228,8 +228,10 @@ export default function Home() {
                 <span className="logout-text">退出登录</span>
               </button>
             </div>
-          </header>
+          </div>
+        </header>
 
+        <div style={styles.container}>
           <div className="content-grid">
           <section style={styles.card}>
             <p style={styles.sectionTitle}>创建短链</p>
@@ -423,18 +425,18 @@ const styles: Record<string, React.CSSProperties> = {
     minHeight: '100vh',
     background: 'var(--background)',
     color: 'var(--text-primary)',
-    padding: '0 0 48px',
   },
-  container: { maxWidth: 1100, margin: '0 auto', padding: '0 20px' },
-  header: {
+  container: { maxWidth: 960, margin: '0 auto', padding: '32px 20px 48px' },
+  headerInner: {
     display: 'flex',
     justifyContent: 'space-between',
     alignItems: 'center',
     gap: 12,
-    padding: '16px 0',
-    borderBottom: '1px solid var(--border-subtle)',
-    marginBottom: 32,
-    flexWrap: 'wrap',
+    padding: '0 20px',
+    maxWidth: 960,
+    margin: '0 auto',
+    height: 60,
+    flexWrap: 'wrap' as const,
   },
   headerLeft: {
     display: 'flex',
