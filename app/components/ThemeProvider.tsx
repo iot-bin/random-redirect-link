@@ -1,6 +1,6 @@
 'use client';
 
-import { createContext, useContext, useEffect, useState } from 'react';
+import { useSyncExternalStore } from 'react';
 
 type Theme = 'light' | 'dark';
 
@@ -9,36 +9,48 @@ interface ThemeContextValue {
   toggle: () => void;
 }
 
-const ThemeContext = createContext<ThemeContextValue>({ theme: 'light', toggle: () => undefined });
+const THEME_CHANGE_EVENT = 'short-link-console-theme-change';
 
 function getSavedTheme(): Theme {
   if (typeof window === 'undefined') return 'light';
-  const saved = localStorage.getItem('theme');
-  return saved === 'dark' ? 'dark' : 'light';
+
+  try {
+    const saved = localStorage.getItem('theme');
+    return saved === 'dark' ? 'dark' : 'light';
+  } catch {
+    return document.documentElement.dataset.theme === 'dark' ? 'dark' : 'light';
+  }
 }
 
-export function ThemeProvider({ children }: { children: React.ReactNode }) {
-  const [theme, setTheme] = useState<Theme>(getSavedTheme);
+function subscribeToTheme(onStoreChange: () => void) {
+  window.addEventListener('storage', onStoreChange);
+  window.addEventListener(THEME_CHANGE_EVENT, onStoreChange);
 
-  useEffect(() => {
-    document.documentElement.setAttribute('data-theme', theme);
-  }, [theme]);
+  return () => {
+    window.removeEventListener('storage', onStoreChange);
+    window.removeEventListener(THEME_CHANGE_EVENT, onStoreChange);
+  };
+}
+
+export function useTheme(): ThemeContextValue {
+  const theme = useSyncExternalStore(
+    subscribeToTheme,
+    getSavedTheme,
+    (): Theme => 'light',
+  );
 
   function toggle() {
     const next: Theme = theme === 'light' ? 'dark' : 'light';
-    setTheme(next);
-    localStorage.setItem('theme', next);
+    document.documentElement.setAttribute('data-theme', next);
+    try {
+      localStorage.setItem('theme', next);
+    } catch {
+      // The visual theme still works when browser storage is unavailable.
+    }
+    window.dispatchEvent(new Event(THEME_CHANGE_EVENT));
   }
 
-  return (
-    <ThemeContext.Provider value={{ theme, toggle }}>
-      {children}
-    </ThemeContext.Provider>
-  );
-}
-
-export function useTheme() {
-  return useContext(ThemeContext);
+  return { theme, toggle };
 }
 
 export function ThemeToggle({ extraClass }: { extraClass?: string }) {
@@ -47,7 +59,7 @@ export function ThemeToggle({ extraClass }: { extraClass?: string }) {
   const cls = extraClass ? `theme-toggle-btn ${extraClass}` : 'theme-toggle-btn';
 
   return (
-    <button onClick={toggle} className={cls} title={label} aria-label={label}>
+    <button type="button" onClick={toggle} className={cls} title={label} aria-label={label}>
       {theme === 'light' ? (
         /* Moon — switch to dark */
         <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">

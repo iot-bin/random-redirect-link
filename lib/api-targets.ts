@@ -1,99 +1,96 @@
-// API Target Configuration Types and Utilities
+import type { PublicApiTarget } from '@/lib/link-types';
 
-export interface ApiTarget {
-    id: string;
-    name: string;
-    apiBaseUrl: string;
-    adminToken: string;
-    redirectBaseUrl: string;
+export interface ApiTarget extends PublicApiTarget {
+  apiBaseUrl: string;
+  adminToken: string;
 }
 
-export interface PublicApiTarget {
-    id: string;
-    name: string;
-    redirectBaseUrl: string;
+function isHttpUrl(value: unknown): value is string {
+  if (typeof value !== 'string') return false;
+
+  try {
+    const url = new URL(value);
+    return url.protocol === 'https:' || url.protocol === 'http:';
+  } catch {
+    return false;
+  }
 }
 
-/**
- * Parse and validate API targets from environment variable
- * Returns empty array if parsing fails or no targets configured
- */
 export function parseApiTargets(): ApiTarget[] {
-    const targetsJson = process.env.API_TARGETS;
-    
-    if (!targetsJson) {
-        return [];
+  const targetsJson = process.env.API_TARGETS;
+  if (!targetsJson) return [];
+
+  try {
+    const parsed: unknown = JSON.parse(targetsJson);
+    if (!Array.isArray(parsed)) {
+      console.error('API_TARGETS 必须是 JSON 数组');
+      return [];
     }
 
-    try {
-        const parsed = JSON.parse(targetsJson);
-        
-        if (!Array.isArray(parsed)) {
-            console.error('API_TARGETS must be a JSON array');
-            return [];
-        }
-
-        // Validate each target has required fields
-        const validated = parsed.filter((target: unknown) => {
-            if (typeof target !== 'object' || target === null) return false;
-            
-            const t = target as Record<string, unknown>;
-            const hasRequiredFields = 
-                typeof t.id === 'string' && t.id.length > 0 &&
-                typeof t.name === 'string' && t.name.length > 0 &&
-                typeof t.apiBaseUrl === 'string' && t.apiBaseUrl.startsWith('http') &&
-                typeof t.adminToken === 'string' && t.adminToken.length > 0 &&
-                typeof t.redirectBaseUrl === 'string' && t.redirectBaseUrl.startsWith('http');
-            
-            if (!hasRequiredFields) {
-                console.warn(`Invalid API target configuration:`, target);
-            }
-            
-            return hasRequiredFields;
-        });
-
-        return validated as ApiTarget[];
-    } catch (error) {
-        console.error('Failed to parse API_TARGETS:', error);
+    return parsed.flatMap((target, index) => {
+      if (typeof target !== 'object' || target === null) {
+        console.warn(`API_TARGETS 第 ${index + 1} 项格式无效，已忽略`);
         return [];
-    }
+      }
+
+      const value = target as Record<string, unknown>;
+      const id = typeof value.id === 'string' ? value.id.trim() : '';
+      const name = typeof value.name === 'string' ? value.name.trim() : '';
+      const apiBaseUrl = isHttpUrl(value.apiBaseUrl)
+        ? value.apiBaseUrl.replace(/\/+$/, '')
+        : '';
+      const adminToken = typeof value.adminToken === 'string'
+        ? value.adminToken
+        : '';
+      const redirectBaseUrl = isHttpUrl(value.redirectBaseUrl)
+        ? value.redirectBaseUrl.replace(/\/+$/, '')
+        : '';
+
+      const valid =
+        id.length > 0
+        && name.length > 0
+        && apiBaseUrl.length > 0
+        && adminToken.length > 0
+        && redirectBaseUrl.length > 0;
+
+      if (!valid) {
+        console.warn(`API_TARGETS 第 ${index + 1} 项配置不完整，已忽略`);
+        return [];
+      }
+
+      return [{
+        id,
+        name,
+        apiBaseUrl,
+        adminToken,
+        redirectBaseUrl,
+      }];
+    });
+  } catch {
+    console.error('无法解析 API_TARGETS，请检查 JSON 格式');
+    return [];
+  }
 }
 
-/**
- * Get public API target info (without sensitive tokens)
- */
 export function getPublicApiTargets(): PublicApiTarget[] {
-    const targets = parseApiTargets();
-    return targets.map(t => ({
-        id: t.id,
-        name: t.name,
-        redirectBaseUrl: t.redirectBaseUrl,
-    }));
+  return parseApiTargets().map(({ id, name, redirectBaseUrl }) => ({
+    id,
+    name,
+    redirectBaseUrl,
+  }));
 }
 
-/**
- * Get a specific API target by ID
- */
 export function getApiTargetById(id: string): ApiTarget | null {
-    const targets = parseApiTargets();
-    return targets.find(t => t.id === id) || null;
+  return parseApiTargets().find((target) => target.id === id) ?? null;
 }
 
-/**
- * Get the default target ID from environment or first target
- */
 export function getDefaultTargetId(): string | null {
-    const defaultId = process.env.DEFAULT_TARGET_ID;
-    
-    if (defaultId) {
-        // Verify the default ID exists in targets
-        const target = getApiTargetById(defaultId);
-        if (target) {
-            return defaultId;
-        }
-    }
-    
-    // Fall back to first target
-    const targets = parseApiTargets();
-    return targets.length > 0 ? targets[0].id : null;
+  const targets = parseApiTargets();
+  const configuredDefault = process.env.DEFAULT_TARGET_ID?.trim();
+
+  if (configuredDefault && targets.some((target) => target.id === configuredDefault)) {
+    return configuredDefault;
+  }
+
+  return targets[0]?.id ?? null;
 }
