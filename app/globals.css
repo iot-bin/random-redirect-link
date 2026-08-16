@@ -853,6 +853,10 @@ select:focus-visible {
   padding-bottom: 22px;
 }
 
+.lookup-panel .alert {
+  margin-top: 16px;
+}
+
 .environment-pill {
   padding: 6px 10px;
   background: var(--surface-raised);
@@ -869,6 +873,239 @@ select:focus-visible {
   display: grid;
   grid-template-columns: minmax(0, 1fr) auto;
   gap: 9px;
+}
+
+.manager-search-row {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto auto;
+  gap: 9px;
+}
+
+.manager-browser {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) minmax(320px, 380px);
+  gap: 20px;
+  align-items: start;
+}
+
+.link-browser-panel {
+  min-width: 0;
+  overflow: hidden;
+}
+
+.link-browser-header {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 18px;
+  padding: 20px 22px;
+  border-bottom: 1px solid var(--border-subtle);
+}
+
+.link-browser-header h2,
+.list-state h3 {
+  margin: 0;
+  font-size: 16px;
+  letter-spacing: -0.02em;
+}
+
+.link-browser-header p:not(.eyebrow),
+.list-state p {
+  margin: 5px 0 0;
+  color: var(--text-secondary);
+  font-size: 11px;
+  line-height: 1.55;
+}
+
+.list-alert {
+  padding: 16px 22px 0;
+}
+
+.link-list-content {
+  transition: opacity 140ms ease;
+}
+
+.link-list-content.is-loading {
+  opacity: 0.55;
+  pointer-events: none;
+}
+
+.link-table-wrap {
+  min-width: 0;
+  overflow-x: auto;
+}
+
+.link-table {
+  width: 100%;
+  border-collapse: collapse;
+  table-layout: fixed;
+}
+
+.link-table th,
+.link-table td {
+  padding: 13px 14px;
+  border-bottom: 1px solid var(--border-subtle);
+  text-align: left;
+  vertical-align: middle;
+}
+
+.link-table th {
+  background: var(--surface-raised);
+  color: var(--text-muted);
+  font-size: 10px;
+  font-weight: 650;
+  letter-spacing: 0.06em;
+}
+
+.link-table td {
+  color: var(--text-primary);
+  font-size: 11px;
+}
+
+.link-table th:first-child,
+.link-table td:first-child {
+  width: 72px;
+}
+
+.link-table th:nth-child(2),
+.link-table td:nth-child(2) {
+  width: 29%;
+}
+
+.link-table th:nth-child(4),
+.link-table td:nth-child(4) {
+  width: 132px;
+}
+
+.link-table th:last-child,
+.link-table td:last-child {
+  width: 126px;
+  text-align: right;
+}
+
+.link-table tbody tr {
+  transition: background 120ms ease;
+}
+
+.link-table tbody tr:hover,
+.link-table tbody tr.is-selected {
+  background: var(--surface-hover);
+}
+
+.path-select-button {
+  max-width: 100%;
+  padding: 0;
+  border: 0;
+  background: transparent;
+  color: var(--text-primary);
+  cursor: pointer;
+  font-family: var(--font-geist-mono), monospace;
+  font-size: 12px;
+  font-weight: 650;
+  line-height: 1.5;
+  overflow-wrap: anywhere;
+  text-align: left;
+}
+
+.path-select-button:hover {
+  text-decoration: underline;
+  text-underline-offset: 3px;
+}
+
+.table-secondary,
+.table-target {
+  display: block;
+  min-width: 0;
+  overflow: hidden;
+  color: var(--text-muted);
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.table-secondary {
+  margin-top: 3px;
+  font-family: var(--font-geist-mono), monospace;
+  font-size: 10px;
+}
+
+.table-date {
+  color: var(--text-secondary);
+  white-space: nowrap;
+}
+
+.table-actions {
+  display: flex;
+  justify-content: flex-end;
+  gap: 5px;
+}
+
+.icon-button-small {
+  width: 32px;
+  height: 32px;
+}
+
+.icon-button-small svg {
+  width: 15px;
+  height: 15px;
+}
+
+.icon-button:disabled {
+  cursor: not-allowed;
+  opacity: 0.5;
+}
+
+.link-card-list {
+  display: none;
+}
+
+.list-state {
+  min-height: 310px;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  padding: 32px 20px;
+  text-align: center;
+}
+
+.list-state .empty-state-icon {
+  margin-bottom: 13px;
+}
+
+.loading-dot {
+  width: 18px;
+  height: 18px;
+  margin-bottom: 12px;
+  border: 2px solid var(--border);
+  border-top-color: var(--text-primary);
+  border-radius: 50%;
+  animation: loading-spin 700ms linear infinite;
+}
+
+@keyframes loading-spin {
+  to {
+    transform: rotate(360deg);
+  }
+}
+
+.pagination-controls {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  padding: 14px 18px;
+  border-top: 1px solid var(--border-subtle);
+}
+
+.pagination-controls > span {
+  color: var(--text-muted);
+  font-size: 11px;
+  white-space: nowrap;
+}
+
+.manager-detail {
+  position: sticky;
+  top: 28px;
 }
 
 .manager-result {
@@ -979,6 +1216,74 @@ select:focus-visible {
 
   .empty-state {
     min-height: 300px;
+  }
+
+  .manager-browser {
+    grid-template-columns: 1fr;
+  }
+
+  .manager-detail {
+    position: static;
+  }
+}
+
+@media (max-width: 700px) {
+  .link-table-wrap {
+    display: none;
+  }
+
+  .link-card-list {
+    display: grid;
+    gap: 10px;
+    padding: 14px;
+  }
+
+  .link-card {
+    min-width: 0;
+    padding: 14px;
+    border: 1px solid var(--border-subtle);
+    border-radius: 10px;
+    background: var(--background);
+  }
+
+  .link-card.is-selected {
+    border-color: var(--text-muted);
+    background: var(--surface-hover);
+  }
+
+  .link-card-heading {
+    display: flex;
+    align-items: flex-start;
+    justify-content: space-between;
+    gap: 12px;
+  }
+
+  .link-card dl {
+    display: grid;
+    gap: 9px;
+    margin: 14px 0;
+  }
+
+  .link-card dl > div {
+    min-width: 0;
+  }
+
+  .link-card dt {
+    margin-bottom: 3px;
+    color: var(--text-muted);
+    font-size: 10px;
+  }
+
+  .link-card dd {
+    margin: 0;
+    color: var(--text-secondary);
+    font-size: 11px;
+    line-height: 1.5;
+    overflow-wrap: anywhere;
+  }
+
+  .link-card .table-actions {
+    justify-content: flex-start;
   }
 }
 
@@ -1102,7 +1407,12 @@ select:focus-visible {
     grid-template-columns: 1fr;
   }
 
+  .manager-search-row {
+    grid-template-columns: 1fr;
+  }
+
   .lookup-input-row .button,
+  .manager-search-row .button,
   .form-actions .button,
   .result-actions .button,
   .result-actions a,
@@ -1126,5 +1436,17 @@ select:focus-visible {
 
   .action-hint {
     width: 100%;
+  }
+
+  .link-browser-header {
+    padding: 18px;
+  }
+
+  .pagination-controls {
+    flex-wrap: wrap;
+  }
+
+  .pagination-controls .button {
+    min-height: 44px;
   }
 }

@@ -1,22 +1,27 @@
 'use client';
 
-import { useCallback, useEffect, useMemo, useState } from 'react';
+import { useCallback, useEffect, useRef, useState } from 'react';
 import {
-  CopyIcon,
-  ExternalLinkIcon,
+  ChevronLeftIcon,
+  ChevronRightIcon,
+  LinkIcon,
+  RefreshIcon,
   SearchIcon,
-  TrashIcon,
 } from '@/app/components/Icons';
+import { LinkDetailsPanel } from '@/app/components/LinkDetailsPanel';
+import { LinkList } from '@/app/components/LinkList';
 import {
   buildShortUrl,
   encodeLinkPath,
   getLinkPathError,
-  getLinkTarget,
+  getLinkPrefixError,
   normalizeLinkPath,
+  normalizeLinkPrefix,
 } from '@/lib/link-path';
 import type {
   ApiError,
   DeleteLinkResponse,
+  LinkListResponse,
   LinkRecord,
   PublicApiTarget,
 } from '@/lib/link-types';
@@ -26,6 +31,8 @@ interface LinkManagerPanelProps {
   initialPath?: string;
 }
 
+const PAGE_SIZE = 25;
+
 function isApiError(value: unknown): value is ApiError {
   return (
     typeof value === 'object'
@@ -34,125 +41,254 @@ function isApiError(value: unknown): value is ApiError {
   );
 }
 
-function formatDate(value?: string): string {
-  if (!value) return '—';
-  const date = new Date(value);
-  if (Number.isNaN(date.getTime())) return value;
+function isLinkRecord(value: unknown): value is LinkRecord {
+  return (
+    typeof value === 'object'
+    && value !== null
+    && typeof (value as Record<string, unknown>).path === 'string'
+    && (value as Record<string, unknown>).path !== ''
+  );
+}
 
-  return new Intl.DateTimeFormat('zh-CN', {
-    year: 'numeric',
-    month: '2-digit',
-    day: '2-digit',
-    hour: '2-digit',
-    minute: '2-digit',
-  }).format(date);
+function parseLinkListResponse(value: unknown): LinkListResponse | null {
+  if (typeof value !== 'object' || value === null) return null;
+
+  const response = value as Record<string, unknown>;
+  if (!Array.isArray(response.items) || !response.items.every(isLinkRecord)) {
+    return null;
+  }
+  if (response.nextCursor !== null && typeof response.nextCursor !== 'string') {
+    return null;
+  }
+
+  return {
+    items: response.items,
+    nextCursor: response.nextCursor,
+  };
+}
+
+function isDeleteLinkResponse(value: unknown): value is DeleteLinkResponse {
+  if (typeof value !== 'object' || value === null) return false;
+
+  const response = value as Record<string, unknown>;
+  return response.deleted === true && typeof response.path === 'string';
 }
 
 export function LinkManagerPanel({
   target,
   initialPath = '',
 }: LinkManagerPanelProps) {
-  const [path, setPath] = useState(initialPath);
-  const [record, setRecord] = useState<LinkRecord | null>(null);
-  const [loading, setLoading] = useState(false);
-  const [deleting, setDeleting] = useState(false);
-  const [error, setError] = useState('');
+  const [searchInput, setSearchInput] = useState(initialPath);
+  const [activePrefix, setActivePrefix] = useState('');
+  const [items, setItems] = useState<LinkRecord[]>([]);
+  const [selectedRecord, setSelectedRecord] = useState<LinkRecord | null>(null);
+  const [nextCursor, setNextCursor] = useState<string | null>(null);
+  const [cursorStack, setCursorStack] = useState<Array<string | null>>([null]);
+  const [listLoading, setListLoading] = useState(false);
+  const [lookupLoading, setLookupLoading] = useState(false);
+  const [deletingPath, setDeletingPath] = useState('');
+  const [listError, setListError] = useState('');
+  const [searchError, setSearchError] = useState('');
   const [notice, setNotice] = useState('');
-  const [copied, setCopied] = useState(false);
+  const [copiedPath, setCopiedPath] = useState('');
+  const copyTimerRef = useRef<number | null>(null);
 
-  const shortUrl = useMemo(
-    () => (target && record ? buildShortUrl(target.redirectBaseUrl, record.path) : ''),
-    [record, target],
+  const requestPage = useCallback(
+    async (
+      cursor: string | null,
+      prefix: string,
+      signal?: AbortSignal,
+    ): Promise<LinkListResponse | null> => {
+      if (!target) {
+        setItems([]);
+        setNextCursor(null);
+        setListError('请选择运行环境');
+        return null;
+      }
+
+      setListLoading(true);
+      setListError('');
+
+      const query = new URLSearchParams({
+        targetId: target.id,
+        limit: String(PAGE_SIZE),
+      });
+      if (cursor) query.set('cursor', cursor);
+      if (prefix) query.set('prefix', prefix);
+
+      try {
+        const response = await fetch(`/api/links?${query.toString()}`, {
+          cache: 'no-store',
+          signal,
+        });
+        const payload: unknown = await response.json().catch(() => ({}));
+
+        if (!response.ok) {
+          setListError(isApiError(payload) ? payload.error : '列表加载失败，请稍后重试');
+          return null;
+        }
+
+        const result = parseLinkListResponse(payload);
+        if (!result) {
+          setListError('后台返回的列表格式无效，请稍后重试');
+          return null;
+        }
+
+        setItems(result.items);
+        setNextCursor(result.nextCursor);
+        return result;
+      } catch (requestError) {
+        if (requestError instanceof Error && requestError.name === 'AbortError') {
+          return null;
+        }
+        setListError('网络连接失败，请稍后重试');
+        return null;
+      } finally {
+        setListLoading(false);
+      }
+    },
+    [target],
   );
 
-  const lookup = useCallback(
+  const lookupExact = useCallback(
     async (input: string, signal?: AbortSignal) => {
-      const normalizedPath = normalizeLinkPath(input);
-      const pathError = getLinkPathError(normalizedPath);
+      const path = normalizeLinkPath(input);
+      const pathError = getLinkPathError(path);
 
-      setError('');
+      setSearchError('');
       setNotice('');
-      setCopied(false);
 
       if (!target) {
-        setRecord(null);
-        setError('请选择运行环境');
+        setSearchError('请选择运行环境');
         return;
       }
       if (pathError) {
-        setRecord(null);
-        setError(pathError);
+        setSearchError(pathError);
         return;
       }
 
-      setLoading(true);
+      setLookupLoading(true);
       try {
         const response = await fetch(
-          `/api/links/${encodeLinkPath(normalizedPath)}?targetId=${encodeURIComponent(target.id)}`,
+          `/api/links/${encodeLinkPath(path)}?targetId=${encodeURIComponent(target.id)}`,
           { cache: 'no-store', signal },
         );
         const payload: unknown = await response.json().catch(() => ({}));
 
         if (!response.ok) {
-          setRecord(null);
-          setError(isApiError(payload) ? payload.error : '查询失败，请稍后重试');
+          setSearchError(isApiError(payload) ? payload.error : '查询失败，请稍后重试');
+          return;
+        }
+        if (!isLinkRecord(payload)) {
+          setSearchError('后台返回的链接格式无效，请稍后重试');
           return;
         }
 
-        setRecord(payload as LinkRecord);
-        setPath(normalizedPath);
+        setSelectedRecord(payload);
+        setSearchInput(path);
       } catch (requestError) {
         if (requestError instanceof Error && requestError.name === 'AbortError') return;
-        setRecord(null);
-        setError('网络连接失败，请稍后重试');
+        setSearchError('网络连接失败，请稍后重试');
       } finally {
-        setLoading(false);
+        setLookupLoading(false);
       }
     },
     [target],
   );
 
   useEffect(() => {
-    if (!initialPath) return;
-
     const controller = new AbortController();
-    const timeout = window.setTimeout(() => {
-      void lookup(initialPath, controller.signal);
+    const timerId = window.setTimeout(() => {
+      void requestPage(null, '', controller.signal);
+      if (initialPath) void lookupExact(initialPath, controller.signal);
     }, 0);
 
     return () => {
-      window.clearTimeout(timeout);
+      window.clearTimeout(timerId);
       controller.abort();
     };
-  }, [initialPath, lookup]);
+  }, [initialPath, lookupExact, requestPage]);
 
-  function handleSubmit(event: React.FormEvent<HTMLFormElement>) {
-    event.preventDefault();
-    void lookup(path);
+  useEffect(() => () => {
+    if (copyTimerRef.current !== null) {
+      window.clearTimeout(copyTimerRef.current);
+    }
+  }, []);
+
+  async function applyPrefix() {
+    const prefix = normalizeLinkPrefix(searchInput);
+
+    setSearchError('');
+    setNotice('');
+
+    if (prefix) {
+      const prefixError = getLinkPrefixError(prefix);
+      if (prefixError) {
+        setSearchError(prefixError);
+        return;
+      }
+    }
+
+    const result = await requestPage(null, prefix);
+    if (!result) return;
+
+    setActivePrefix(prefix);
+    setSearchInput(prefix);
+    setCursorStack([null]);
   }
 
-  async function copyShortUrl() {
-    if (!shortUrl) return;
+  function handleFilterSubmit(event: React.FormEvent<HTMLFormElement>) {
+    event.preventDefault();
+    void applyPrefix();
+  }
+
+  async function handlePreviousPage() {
+    if (cursorStack.length <= 1) return;
+
+    const previousCursor = cursorStack[cursorStack.length - 2] ?? null;
+    const result = await requestPage(previousCursor, activePrefix);
+    if (result) setCursorStack((current) => current.slice(0, -1));
+  }
+
+  async function handleNextPage() {
+    if (!nextCursor) return;
+
+    const cursor = nextCursor;
+    const result = await requestPage(cursor, activePrefix);
+    if (result) setCursorStack((current) => [...current, cursor]);
+  }
+
+  async function copyShortUrl(record: LinkRecord) {
+    if (!target) return;
 
     try {
-      await navigator.clipboard.writeText(shortUrl);
-      setCopied(true);
-      window.setTimeout(() => setCopied(false), 1_500);
+      await navigator.clipboard.writeText(
+        buildShortUrl(target.redirectBaseUrl, record.path),
+      );
+      setCopiedPath(record.path);
+      setNotice(`已复制短链“${record.path}”`);
+      if (copyTimerRef.current !== null) {
+        window.clearTimeout(copyTimerRef.current);
+      }
+      copyTimerRef.current = window.setTimeout(() => {
+        setCopiedPath('');
+        setNotice('');
+      }, 1_800);
     } catch {
-      setError('无法复制短链，请手动选择链接地址');
+      setSearchError('无法复制短链，请手动选择链接地址');
     }
   }
 
-  async function deleteLink() {
-    if (!target || !record) return;
+  async function deleteLink(record: LinkRecord) {
+    if (!target) return;
 
     const confirmed = window.confirm(
       `确定要从“${target.name}”删除短链“${record.path}”吗？此操作无法撤销。`,
     );
     if (!confirmed) return;
 
-    setDeleting(true);
-    setError('');
+    setDeletingPath(record.path);
+    setSearchError('');
     setNotice('');
 
     try {
@@ -163,146 +299,177 @@ export function LinkManagerPanel({
       const payload: unknown = await response.json().catch(() => ({}));
 
       if (!response.ok) {
-        setError(isApiError(payload) ? payload.error : '删除失败，请稍后重试');
+        setSearchError(isApiError(payload) ? payload.error : '删除失败，请稍后重试');
         return;
       }
 
-      const result = payload as DeleteLinkResponse;
-      setRecord(null);
+      if (!isDeleteLinkResponse(payload)) {
+        setSearchError('后台返回的删除结果无效，请稍后重试');
+        return;
+      }
+
+      const result = payload;
+      setSelectedRecord((current) => (
+        current?.path === result.path ? null : current
+      ));
+      setItems((current) => current.filter((item) => item.path !== result.path));
       setNotice(`短链“${result.path}”已删除`);
+
+      const currentCursor = cursorStack[cursorStack.length - 1] ?? null;
+      const refreshed = await requestPage(currentCursor, activePrefix);
+
+      if (refreshed?.items.length === 0 && cursorStack.length > 1) {
+        const previousCursor = cursorStack[cursorStack.length - 2] ?? null;
+        const previousPage = await requestPage(previousCursor, activePrefix);
+        if (previousPage) setCursorStack((current) => current.slice(0, -1));
+      }
     } catch {
-      setError('网络连接失败，请稍后重试');
+      setSearchError('网络连接失败，请稍后重试');
     } finally {
-      setDeleting(false);
+      setDeletingPath('');
     }
   }
+
+  const pageNumber = cursorStack.length;
+  const emptyMessage = activePrefix
+    ? `没有路径以“${activePrefix}”开头的短链。`
+    : '当前环境暂时没有短链记录。';
 
   return (
     <div className="manager-workspace">
       <section className="panel lookup-panel" aria-labelledby="lookup-title">
         <div className="panel-heading panel-heading-row">
           <div>
-            <p className="eyebrow">精确查询</p>
-            <h2 id="lookup-title">按短链路径查询</h2>
-            <p>查询当前环境中的真实后台记录，然后复制、打开或删除。</p>
+            <p className="eyebrow">列表与查询</p>
+            <h2 id="lookup-title">浏览后台短链</h2>
+            <p>留空显示全部链接，也可以按路径前缀筛选或精确定位。</p>
           </div>
           <span className="environment-pill">{target?.name ?? '未选择环境'}</span>
         </div>
 
-        <form className="lookup-form" onSubmit={handleSubmit}>
+        <form className="lookup-form" onSubmit={handleFilterSubmit}>
           <div className="form-field">
-            <label htmlFor="lookup-path">短链路径</label>
-            <div className="lookup-input-row">
+            <label htmlFor="lookup-path">路径或路径前缀</label>
+            <div className="manager-search-row">
               <input
                 id="lookup-path"
-                value={path}
-                onChange={(event) => setPath(event.target.value)}
-                placeholder="例如：download/app"
+                value={searchInput}
+                onChange={(event) => setSearchInput(event.target.value)}
+                placeholder="留空显示全部，例如：download/"
                 autoComplete="off"
+                aria-invalid={searchError ? true : undefined}
+                aria-describedby={searchError ? 'lookup-help lookup-error' : 'lookup-help'}
               />
               <button
                 className="button button-primary"
                 type="submit"
-                disabled={loading || !target}
+                disabled={listLoading || !target}
               >
                 <SearchIcon />
-                {loading ? '正在查询…' : '查询链接'}
+                {listLoading ? '正在筛选…' : '筛选列表'}
+              </button>
+              <button
+                className="button button-secondary"
+                type="button"
+                disabled={lookupLoading || !target}
+                onClick={() => void lookupExact(searchInput)}
+              >
+                <LinkIcon />
+                {lookupLoading ? '正在查询…' : '精确查询'}
               </button>
             </div>
-            <p className="field-help">
-              当前 Lambda 支持按路径精确查询；全量列表和分页需要后续升级后台。
+            <p className="field-help" id="lookup-help">
+              列表按路径升序排列；前缀筛选区分大小写，精确查询需要完整路径。
             </p>
           </div>
         </form>
 
-        {error ? <div className="alert alert-error" role="alert">{error}</div> : null}
-        {notice ? <div className="alert alert-success" role="status">{notice}</div> : null}
-      </section>
-
-      <section className="panel manager-result" aria-live="polite">
-        {record ? (
-          <>
-            <div className="manager-result-header">
-              <div>
-                <span className={record.enabled === false ? 'status-badge status-off' : 'status-badge'}>
-                  {record.enabled === false ? '已停用' : '已启用'}
-                </span>
-                <h2>{record.path}</h2>
-                <p>{target?.redirectBaseUrl}</p>
-              </div>
-              <div className="compact-actions">
-                <button className="icon-button" type="button" onClick={copyShortUrl} title="复制短链">
-                  <CopyIcon />
-                  <span className="sr-only">{copied ? '已复制' : '复制短链'}</span>
-                </button>
-                <a
-                  className="icon-button"
-                  href={shortUrl}
-                  target="_blank"
-                  rel="noreferrer"
-                  title="打开短链"
-                >
-                  <ExternalLinkIcon />
-                  <span className="sr-only">打开短链</span>
-                </a>
-              </div>
-            </div>
-
-            <dl className="detail-grid">
-              <div>
-                <dt>短链地址</dt>
-                <dd><a href={shortUrl} target="_blank" rel="noreferrer">{shortUrl}</a></dd>
-              </div>
-              <div>
-                <dt>目标地址</dt>
-                <dd className="break-all">{getLinkTarget(record) || '—'}</dd>
-              </div>
-              <div>
-                <dt>跳转方式</dt>
-                <dd>
-                  {record.randomSubdomain
-                    ? `随机二级域名（${record.subdomainLength ?? 10} 位）`
-                    : '固定地址'}
-                </dd>
-              </div>
-              <div>
-                <dt>响应状态</dt>
-                <dd>{record.statusCode ?? 302}</dd>
-              </div>
-              <div>
-                <dt>创建时间</dt>
-                <dd>{formatDate(record.createdAt)}</dd>
-              </div>
-              <div>
-                <dt>更新时间</dt>
-                <dd>{formatDate(record.updatedAt)}</dd>
-              </div>
-            </dl>
-
-            <div className="danger-zone">
-              <div>
-                <h3>删除短链</h3>
-                <p>删除后，访问该路径将立即返回未找到。</p>
-              </div>
-              <button
-                className="button button-danger"
-                type="button"
-                onClick={deleteLink}
-                disabled={deleting}
-              >
-                <TrashIcon />
-                {deleting ? '正在删除…' : '删除短链'}
-              </button>
-            </div>
-          </>
-        ) : (
-          <div className="empty-state manager-empty">
-            <span className="empty-state-icon"><SearchIcon /></span>
-            <h2>尚未选择链接</h2>
-            <p>输入短链路径进行查询，结果会显示在这里。</p>
+        {searchError ? (
+          <div className="alert alert-error" id="lookup-error" role="alert">
+            {searchError}
           </div>
-        )}
+        ) : null}
       </section>
+
+      {notice ? <div className="alert alert-success" role="status">{notice}</div> : null}
+
+      <div className="manager-browser">
+        <section
+          className="panel link-browser-panel"
+          aria-labelledby="link-list-title"
+          aria-busy={listLoading}
+        >
+          <header className="link-browser-header">
+            <div>
+              <p className="eyebrow">链接列表</p>
+              <h2 id="link-list-title">
+                {activePrefix ? `前缀：${activePrefix}` : '全部链接'}
+              </h2>
+              <p role="status">第 {pageNumber} 页 · 本页 {items.length} 条</p>
+            </div>
+            <button
+              className="icon-button"
+              type="button"
+              title="刷新当前页"
+              aria-label="刷新当前页"
+              disabled={listLoading || !target}
+              onClick={() => void requestPage(
+                cursorStack[cursorStack.length - 1] ?? null,
+                activePrefix,
+              )}
+            >
+              <RefreshIcon />
+            </button>
+          </header>
+
+          {listError ? (
+            <div className="list-alert">
+              <div className="alert alert-error" role="alert">{listError}</div>
+            </div>
+          ) : null}
+
+          <LinkList
+            items={items}
+            redirectBaseUrl={target?.redirectBaseUrl ?? ''}
+            selectedPath={selectedRecord?.path}
+            loading={listLoading}
+            emptyMessage={emptyMessage}
+            onSelect={setSelectedRecord}
+            onCopy={(record) => void copyShortUrl(record)}
+          />
+
+          <nav className="pagination-controls" aria-label="链接列表分页">
+            <button
+              className="button button-secondary"
+              type="button"
+              disabled={cursorStack.length <= 1 || listLoading}
+              onClick={() => void handlePreviousPage()}
+            >
+              <ChevronLeftIcon />
+              上一页
+            </button>
+            <span>第 {pageNumber} 页</span>
+            <button
+              className="button button-secondary"
+              type="button"
+              disabled={!nextCursor || listLoading}
+              onClick={() => void handleNextPage()}
+            >
+              下一页
+              <ChevronRightIcon />
+            </button>
+          </nav>
+        </section>
+
+        <LinkDetailsPanel
+          target={target}
+          record={selectedRecord}
+          deleting={deletingPath === selectedRecord?.path}
+          copied={copiedPath === selectedRecord?.path}
+          onCopy={(record) => void copyShortUrl(record)}
+          onDelete={(record) => void deleteLink(record)}
+        />
+      </div>
     </div>
   );
 }

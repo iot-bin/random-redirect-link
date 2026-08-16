@@ -4,6 +4,10 @@ export function normalizeLinkPath(input: string): string {
   return String(input ?? '').trim().replace(/^\/+/, '').replace(/\/+$/, '');
 }
 
+export function normalizeLinkPrefix(input: string): string {
+  return String(input ?? '').trim().replace(/^\/+/, '');
+}
+
 export function getLinkPathError(input: string): string {
   const path = normalizeLinkPath(input);
 
@@ -15,6 +19,21 @@ export function getLinkPathError(input: string): string {
   if (path.includes('//')) return '短链路径不能包含连续斜杠';
   if (path.includes('?') || path.includes('#')) {
     return '短链路径不能包含问号或井号';
+  }
+
+  return '';
+}
+
+export function getLinkPrefixError(input: string): string {
+  const prefix = normalizeLinkPrefix(input);
+
+  if (prefix.length > MAX_LINK_PATH_LENGTH) {
+    return '路径前缀不能超过 128 个字符';
+  }
+  if (prefix.includes('..')) return '路径前缀不能包含“..”';
+  if (prefix.includes('//')) return '路径前缀不能包含连续斜杠';
+  if (prefix.includes('?') || prefix.includes('#')) {
+    return '路径前缀不能包含问号或井号';
   }
 
   return '';
