@@ -29,7 +29,7 @@ const sectionCopy: Record<ConsoleSection, { title: string; description: string }
   },
   manage: {
     title: '链接管理',
-    description: '按路径查询后台记录，查看详情或删除已有短链。',
+    description: '浏览和筛选后台记录，查看详情或删除已有短链。',
   },
 };
 

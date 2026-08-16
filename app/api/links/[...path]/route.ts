@@ -33,6 +33,7 @@ async function handleRequest(
     targetId,
     endpoint: `/links/${encodeLinkPath(path)}`,
     method,
+    operation: method === 'GET' ? 'get' : 'delete',
   });
 }
 

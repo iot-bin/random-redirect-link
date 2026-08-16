@@ -17,6 +17,11 @@ export interface LinkRecord {
   targetUrl?: string;
 }
 
+export interface LinkListResponse {
+  items: LinkRecord[];
+  nextCursor: string | null;
+}
+
 export interface ApiError {
   error: string;
   code?: string;
