@@ -1,21 +1,24 @@
-import type { Metadata } from "next";
-import { Geist, Geist_Mono } from "next/font/google";
-import "./globals.css";
-import { ThemeProvider } from "./components/ThemeProvider";
+import type { Metadata } from 'next';
+import { Geist, Geist_Mono } from 'next/font/google';
+import Script from 'next/script';
+import '@/app/globals.css';
 
 const geistSans = Geist({
-  variable: "--font-geist-sans",
-  subsets: ["latin"],
+  variable: '--font-geist-sans',
+  subsets: ['latin'],
 });
 
 const geistMono = Geist_Mono({
-  variable: "--font-geist-mono",
-  subsets: ["latin"],
+  variable: '--font-geist-mono',
+  subsets: ['latin'],
 });
 
+const themeInitializationScript =
+  'try{var theme=localStorage.getItem("theme");document.documentElement.dataset.theme=theme==="dark"?"dark":"light"}catch{}';
+
 export const metadata: Metadata = {
-  title: process.env.SITE_TITLE || "Microbin Console",
-  description: process.env.SITE_DESCRIPTION || "Microbin short link console",
+  title: process.env.SITE_TITLE || '短链管理控制台',
+  description: process.env.SITE_DESCRIPTION || '创建、查询和管理随机跳转短链',
   icons: {
     icon: [
       { url: '/favicon.ico' },
@@ -31,19 +34,15 @@ export const metadata: Metadata = {
 
 export default function RootLayout({
   children,
-}: Readonly<{
-  children: React.ReactNode;
-}>) {
+}: Readonly<{ children: React.ReactNode }>) {
   return (
-    <html lang="en" data-theme="light">
-      <body
-        className={`${geistSans.variable} ${geistMono.variable} antialiased`}
-      >
-        <ThemeProvider>
-          {children}
-        </ThemeProvider>
-      </body>
+    <html lang="zh-CN" data-theme="light" suppressHydrationWarning>
+      <head>
+        <Script id="theme-initialization" strategy="beforeInteractive">
+          {themeInitializationScript}
+        </Script>
+      </head>
+      <body className={`${geistSans.variable} ${geistMono.variable}`}>{children}</body>
     </html>
   );
 }
-

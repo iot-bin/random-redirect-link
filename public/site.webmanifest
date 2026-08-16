@@ -1,6 +1,6 @@
 {
-  "name": "Microbin Console",
-  "short_name": "Microbin",
+  "name": "短链管理控制台",
+  "short_name": "短链控制台",
   "icons": [
     {
       "src": "/android-chrome-192x192.png",
@@ -13,7 +13,7 @@
       "type": "image/png"
     }
   ],
-  "theme_color": "#0b1020",
-  "background_color": "#0b1020",
+  "theme_color": "#111318",
+  "background_color": "#f6f7f9",
   "display": "standalone"
 }

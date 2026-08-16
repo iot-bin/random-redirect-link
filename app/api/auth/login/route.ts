@@ -1,36 +1,41 @@
-import { NextResponse } from 'next/server';
 import { cookies } from 'next/headers';
+import { NextResponse } from 'next/server';
+import {
+  createSessionToken,
+  SESSION_MAX_AGE_SECONDS,
+} from '@/lib/session';
 
-export async function POST(req: Request) {
-    const CONSOLE_PASSWORD = process.env.CONSOLE_PASSWORD;
+export async function POST(request: Request) {
+  const consolePassword = process.env.CONSOLE_PASSWORD;
+  if (!consolePassword) {
+    return NextResponse.json(
+      { error: '服务端尚未配置控制台密码' },
+      { status: 500 },
+    );
+  }
 
-    if (!CONSOLE_PASSWORD) {
-        return NextResponse.json(
-            { error: 'Server is not configured (missing CONSOLE_PASSWORD).' },
-            { status: 500 }
-        );
-    }
+  const body = await request.json().catch(() => null);
+  if (!body || typeof body !== 'object') {
+    return NextResponse.json({ error: '请求内容格式错误' }, { status: 400 });
+  }
 
-    const body = await req.json().catch(() => ({}));
-    const password = String(body?.password ?? '').trim();
+  const password = String((body as Record<string, unknown>).password ?? '');
+  if (!password) {
+    return NextResponse.json({ error: '请输入密码' }, { status: 400 });
+  }
+  if (password !== consolePassword) {
+    return NextResponse.json({ error: '密码错误' }, { status: 401 });
+  }
 
-    if (!password) {
-        return NextResponse.json({ error: '请输入密码' }, { status: 400 });
-    }
+  const sessionToken = await createSessionToken(consolePassword);
+  const cookieStore = await cookies();
+  cookieStore.set('session', sessionToken, {
+    httpOnly: true,
+    secure: process.env.NODE_ENV === 'production',
+    sameSite: 'strict',
+    maxAge: SESSION_MAX_AGE_SECONDS,
+    path: '/',
+  });
 
-    if (password !== CONSOLE_PASSWORD) {
-        return NextResponse.json({ error: '密码错误' }, { status: 401 });
-    }
-
-    // Set a secure session cookie
-    const cookieStore = await cookies();
-    cookieStore.set('session', 'authenticated', {
-        httpOnly: true,
-        secure: process.env.NODE_ENV === 'production',
-        sameSite: 'lax',
-        maxAge: 60 * 60 * 24 * 7, // 7 days
-        path: '/',
-    });
-
-    return NextResponse.json({ success: true });
+  return NextResponse.json({ success: true });
 }
