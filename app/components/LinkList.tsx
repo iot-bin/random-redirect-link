@@ -1,3 +1,6 @@
+'use client';
+
+import { useEffect, useRef } from 'react';
 import {
   CopyIcon,
   ExternalLinkIcon,
@@ -12,8 +15,18 @@ interface LinkListProps {
   selectedPath?: string;
   loading: boolean;
   emptyMessage: string;
+  selectedPaths: string[];
   onSelect: (record: LinkRecord) => void;
   onCopy: (record: LinkRecord) => void;
+  onToggleSelection: (path: string) => void;
+  onToggleAll: () => void;
+}
+
+interface SelectionCheckboxProps {
+  checked: boolean;
+  indeterminate?: boolean;
+  label: string;
+  onChange: () => void;
 }
 
 interface LinkActionsProps {
@@ -35,6 +48,30 @@ function formatDate(value?: string): string {
   if (!value) return '—';
   const date = new Date(value);
   return Number.isNaN(date.getTime()) ? value : dateFormatter.format(date);
+}
+
+function SelectionCheckbox({
+  checked,
+  indeterminate = false,
+  label,
+  onChange,
+}: SelectionCheckboxProps) {
+  const inputRef = useRef<HTMLInputElement>(null);
+
+  useEffect(() => {
+    if (inputRef.current) inputRef.current.indeterminate = indeterminate;
+  }, [indeterminate]);
+
+  return (
+    <input
+      ref={inputRef}
+      className="selection-checkbox"
+      type="checkbox"
+      checked={checked}
+      aria-label={label}
+      onChange={onChange}
+    />
+  );
 }
 
 function LinkActions({
@@ -83,8 +120,11 @@ export function LinkList({
   selectedPath,
   loading,
   emptyMessage,
+  selectedPaths,
   onSelect,
   onCopy,
+  onToggleSelection,
+  onToggleAll,
 }: LinkListProps) {
   if (loading && items.length === 0) {
     return (
@@ -105,6 +145,10 @@ export function LinkList({
     );
   }
 
+  const selectedPathSet = new Set(selectedPaths);
+  const allSelected = items.every((record) => selectedPathSet.has(record.path));
+  const someSelected = items.some((record) => selectedPathSet.has(record.path));
+
   return (
     <div className={loading ? 'link-list-content is-loading' : 'link-list-content'}>
       <div className="link-table-wrap">
@@ -112,6 +156,14 @@ export function LinkList({
           <caption className="sr-only">当前环境中的短链列表</caption>
           <thead>
             <tr>
+              <th scope="col">
+                <SelectionCheckbox
+                  checked={allSelected}
+                  indeterminate={someSelected && !allSelected}
+                  label="选择本页全部短链"
+                  onChange={onToggleAll}
+                />
+              </th>
               <th scope="col">状态</th>
               <th scope="col">短链路径</th>
               <th scope="col">目标地址</th>
@@ -126,6 +178,13 @@ export function LinkList({
 
               return (
                 <tr key={record.path} className={selected ? 'is-selected' : undefined}>
+                  <td>
+                    <SelectionCheckbox
+                      checked={selectedPathSet.has(record.path)}
+                      label={`选择短链“${record.path}”`}
+                      onChange={() => onToggleSelection(record.path)}
+                    />
+                  </td>
                   <td>
                     <span className={record.enabled === false ? 'status-badge status-off' : 'status-badge'}>
                       {record.enabled === false ? '停用' : '启用'}
@@ -174,13 +233,20 @@ export function LinkList({
               className={selected ? 'link-card is-selected' : 'link-card'}
             >
               <div className="link-card-heading">
-                <button
-                  className="path-select-button"
-                  type="button"
-                  onClick={() => onSelect(record)}
-                >
-                  {record.path}
-                </button>
+                <div className="link-card-select">
+                  <SelectionCheckbox
+                    checked={selectedPathSet.has(record.path)}
+                    label={`选择短链“${record.path}”`}
+                    onChange={() => onToggleSelection(record.path)}
+                  />
+                  <button
+                    className="path-select-button"
+                    type="button"
+                    onClick={() => onSelect(record)}
+                  >
+                    {record.path}
+                  </button>
+                </div>
                 <span className={record.enabled === false ? 'status-badge status-off' : 'status-badge'}>
                   {record.enabled === false ? '停用' : '启用'}
                 </span>

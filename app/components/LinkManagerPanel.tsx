@@ -21,8 +21,11 @@ import {
 import type {
   ApiError,
   DeleteLinkResponse,
+  LinkBatchAction,
+  LinkBatchResponse,
   LinkListResponse,
   LinkRecord,
+  LinkUpdateInput,
   PublicApiTarget,
 } from '@/lib/link-types';
 
@@ -74,6 +77,60 @@ function isDeleteLinkResponse(value: unknown): value is DeleteLinkResponse {
   return response.deleted === true && typeof response.path === 'string';
 }
 
+function parseLinkBatchResponse(value: unknown): LinkBatchResponse | null {
+  if (typeof value !== 'object' || value === null) return null;
+
+  const response = value as Record<string, unknown>;
+  if (
+    response.action !== 'enable'
+    && response.action !== 'disable'
+    && response.action !== 'delete'
+  ) {
+    return null;
+  }
+  if (!Array.isArray(response.succeeded) || !Array.isArray(response.failed)) {
+    return null;
+  }
+
+  const succeeded = response.succeeded.map((entry) => {
+    if (typeof entry !== 'object' || entry === null) return null;
+    const result = entry as Record<string, unknown>;
+    if (typeof result.path !== 'string' || !result.path) return null;
+    if (result.item !== undefined && !isLinkRecord(result.item)) return null;
+    return {
+      path: result.path,
+      ...(isLinkRecord(result.item) ? { item: result.item } : {}),
+    };
+  });
+
+  const failed = response.failed.map((entry) => {
+    if (typeof entry !== 'object' || entry === null) return null;
+    const result = entry as Record<string, unknown>;
+    if (
+      typeof result.path !== 'string'
+      || typeof result.code !== 'string'
+      || typeof result.error !== 'string'
+    ) {
+      return null;
+    }
+    return {
+      path: result.path,
+      code: result.code,
+      error: result.error,
+    };
+  });
+
+  if (succeeded.some((entry) => entry === null) || failed.some((entry) => entry === null)) {
+    return null;
+  }
+
+  return {
+    action: response.action,
+    succeeded: succeeded.filter((entry) => entry !== null),
+    failed: failed.filter((entry) => entry !== null),
+  };
+}
+
 export function LinkManagerPanel({
   target,
   initialPath = '',
@@ -87,6 +144,9 @@ export function LinkManagerPanel({
   const [listLoading, setListLoading] = useState(false);
   const [lookupLoading, setLookupLoading] = useState(false);
   const [deletingPath, setDeletingPath] = useState('');
+  const [updatingPath, setUpdatingPath] = useState('');
+  const [batchAction, setBatchAction] = useState<LinkBatchAction | null>(null);
+  const [selectedPaths, setSelectedPaths] = useState<string[]>([]);
   const [listError, setListError] = useState('');
   const [searchError, setSearchError] = useState('');
   const [notice, setNotice] = useState('');
@@ -136,6 +196,7 @@ export function LinkManagerPanel({
 
         setItems(result.items);
         setNextCursor(result.nextCursor);
+        setSelectedPaths([]);
         return result;
       } catch (requestError) {
         if (requestError instanceof Error && requestError.name === 'AbortError') {
@@ -199,6 +260,8 @@ export function LinkManagerPanel({
   useEffect(() => {
     const controller = new AbortController();
     const timerId = window.setTimeout(() => {
+      setSelectedRecord(null);
+      setSelectedPaths([]);
       void requestPage(null, '', controller.signal);
       if (initialPath) void lookupExact(initialPath, controller.signal);
     }, 0);
@@ -276,6 +339,146 @@ export function LinkManagerPanel({
       }, 1_800);
     } catch {
       setSearchError('无法复制短链，请手动选择链接地址');
+    }
+  }
+
+  async function updateLink(
+    record: LinkRecord,
+    update: LinkUpdateInput,
+  ): Promise<boolean> {
+    if (!target) return false;
+
+    setUpdatingPath(record.path);
+    setSearchError('');
+    setNotice('');
+
+    try {
+      const response = await fetch(
+        `/api/links/${encodeLinkPath(record.path)}?targetId=${encodeURIComponent(target.id)}`,
+        {
+          method: 'PATCH',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ targetId: target.id, ...update }),
+        },
+      );
+      const payload: unknown = await response.json().catch(() => ({}));
+
+      if (!response.ok) {
+        setSearchError(isApiError(payload) ? payload.error : '更新失败，请稍后重试');
+        return false;
+      }
+      if (!isLinkRecord(payload)) {
+        setSearchError('后台返回的更新结果无效，请稍后重试');
+        return false;
+      }
+
+      const updatedRecord = payload;
+      setItems((current) => current.map((item) => (
+        item.path === updatedRecord.path ? updatedRecord : item
+      )));
+      setSelectedRecord((current) => (
+        current?.path === updatedRecord.path ? updatedRecord : current
+      ));
+      setNotice(`短链“${updatedRecord.path}”已更新`);
+      return true;
+    } catch {
+      setSearchError('网络连接失败，请稍后重试');
+      return false;
+    } finally {
+      setUpdatingPath('');
+    }
+  }
+
+  function toggleSelection(path: string) {
+    setSelectedPaths((current) => (
+      current.includes(path)
+        ? current.filter((item) => item !== path)
+        : [...current, path]
+    ));
+  }
+
+  function toggleAllVisible() {
+    const visiblePaths = items.map((record) => record.path);
+    const allSelected = visiblePaths.every((path) => selectedPaths.includes(path));
+    setSelectedPaths(allSelected ? [] : visiblePaths);
+  }
+
+  async function runBatchAction(action: LinkBatchAction) {
+    if (!target || selectedPaths.length === 0) return;
+
+    if (action === 'delete') {
+      const confirmed = window.confirm(
+        `确定要删除已选择的 ${selectedPaths.length} 条短链吗？此操作无法撤销。`,
+      );
+      if (!confirmed) return;
+    }
+
+    setBatchAction(action);
+    setSearchError('');
+    setNotice('');
+
+    try {
+      const response = await fetch('/api/links/batch', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          targetId: target.id,
+          action,
+          paths: selectedPaths,
+        }),
+      });
+      const payload: unknown = await response.json().catch(() => ({}));
+
+      if (!response.ok) {
+        setSearchError(isApiError(payload) ? payload.error : '批量操作失败，请稍后重试');
+        return;
+      }
+
+      const result = parseLinkBatchResponse(payload);
+      if (!result) {
+        setSearchError('后台返回的批量操作结果无效，请稍后重试');
+        return;
+      }
+
+      const successfulPaths = new Set(result.succeeded.map((entry) => entry.path));
+      const updatedItems = new Map(
+        result.succeeded
+          .filter((entry) => entry.item)
+          .map((entry) => [entry.path, entry.item as LinkRecord]),
+      );
+
+      setSelectedRecord((current) => {
+        if (!current || !successfulPaths.has(current.path)) return current;
+        if (action === 'delete') return null;
+        return updatedItems.get(current.path) ?? current;
+      });
+      setItems((current) => current
+        .filter((record) => action !== 'delete' || !successfulPaths.has(record.path))
+        .map((record) => updatedItems.get(record.path) ?? record));
+
+      const actionLabel = action === 'enable'
+        ? '启用'
+        : action === 'disable' ? '停用' : '删除';
+      setNotice(`批量${actionLabel}完成：成功 ${result.succeeded.length} 条`);
+      if (result.failed.length > 0) {
+        setSearchError(`另有 ${result.failed.length} 条操作失败，请刷新后重试`);
+      }
+
+      const currentCursor = cursorStack[cursorStack.length - 1] ?? null;
+      const refreshed = await requestPage(currentCursor, activePrefix);
+      if (
+        action === 'delete'
+        && refreshed?.items.length === 0
+        && cursorStack.length > 1
+      ) {
+        const previousCursor = cursorStack[cursorStack.length - 2] ?? null;
+        const previousPage = await requestPage(previousCursor, activePrefix);
+        if (previousPage) setCursorStack((current) => current.slice(0, -1));
+      }
+    } catch {
+      setSearchError('网络连接失败，请稍后重试');
+    } finally {
+      setBatchAction(null);
     }
   }
 
@@ -428,14 +631,59 @@ export function LinkManagerPanel({
             </div>
           ) : null}
 
+          {selectedPaths.length > 0 ? (
+            <div className="bulk-toolbar" role="region" aria-label="批量操作">
+              <div>
+                <strong>已选择 {selectedPaths.length} 条</strong>
+                <button
+                  className="bulk-clear-button"
+                  type="button"
+                  disabled={batchAction !== null || listLoading}
+                  onClick={() => setSelectedPaths([])}
+                >
+                  取消选择
+                </button>
+              </div>
+              <div className="bulk-actions">
+                <button
+                  className="button button-secondary"
+                  type="button"
+                  disabled={batchAction !== null || listLoading}
+                  onClick={() => void runBatchAction('enable')}
+                >
+                  {batchAction === 'enable' ? '正在启用…' : '批量启用'}
+                </button>
+                <button
+                  className="button button-secondary"
+                  type="button"
+                  disabled={batchAction !== null || listLoading}
+                  onClick={() => void runBatchAction('disable')}
+                >
+                  {batchAction === 'disable' ? '正在停用…' : '批量停用'}
+                </button>
+                <button
+                  className="button button-danger"
+                  type="button"
+                  disabled={batchAction !== null || listLoading}
+                  onClick={() => void runBatchAction('delete')}
+                >
+                  {batchAction === 'delete' ? '正在删除…' : '批量删除'}
+                </button>
+              </div>
+            </div>
+          ) : null}
+
           <LinkList
             items={items}
             redirectBaseUrl={target?.redirectBaseUrl ?? ''}
             selectedPath={selectedRecord?.path}
             loading={listLoading}
             emptyMessage={emptyMessage}
+            selectedPaths={selectedPaths}
             onSelect={setSelectedRecord}
             onCopy={(record) => void copyShortUrl(record)}
+            onToggleSelection={toggleSelection}
+            onToggleAll={toggleAllVisible}
           />
 
           <nav className="pagination-controls" aria-label="链接列表分页">
@@ -462,12 +710,15 @@ export function LinkManagerPanel({
         </section>
 
         <LinkDetailsPanel
+          key={`${target?.id ?? 'none'}:${selectedRecord?.path ?? 'empty'}:${selectedRecord?.updatedAt ?? ''}`}
           target={target}
           record={selectedRecord}
           deleting={deletingPath === selectedRecord?.path}
+          updating={updatingPath === selectedRecord?.path}
           copied={copiedPath === selectedRecord?.path}
           onCopy={(record) => void copyShortUrl(record)}
           onDelete={(record) => void deleteLink(record)}
+          onUpdate={updateLink}
         />
       </div>
     </div>
