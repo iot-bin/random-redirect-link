@@ -16,47 +16,29 @@ import {
   normalizeLinkPath,
 } from '@/lib/link-path';
 import type {
-  ApiError,
   LinkRecord,
   PublicApiTarget,
 } from '@/lib/link-types';
+import {
+  getSubdomainLengthError,
+  getTargetUrlError,
+} from '@/lib/link-validation';
+import {
+  translateApiError,
+  translateValidationError,
+} from '@/lib/i18n/errors';
+import { useLocale } from '@/lib/i18n/LocaleProvider';
 
 interface CreateLinkPanelProps {
   target: PublicApiTarget | null;
   onManage: (path: string) => void;
 }
 
-function getTargetUrlError(value: string): string {
-  const trimmed = value.trim();
-  if (!trimmed) return '请输入目标地址';
-
-  try {
-    const url = new URL(trimmed);
-    if (url.protocol !== 'https:' && url.protocol !== 'http:') {
-      return '目标地址必须以 http:// 或 https:// 开头';
-    }
-    if (url.search || url.hash) {
-      return '当前后台暂不支持目标地址中的查询参数或锚点';
-    }
-  } catch {
-    return '请输入有效的目标地址';
-  }
-
-  return '';
-}
-
-function isApiError(value: unknown): value is ApiError {
-  return (
-    typeof value === 'object'
-    && value !== null
-    && typeof (value as Record<string, unknown>).error === 'string'
-  );
-}
-
 export function CreateLinkPanel({
   target,
   onManage,
 }: CreateLinkPanelProps) {
+  const { t } = useLocale();
   const [path, setPath] = useState('');
   const [targetUrl, setTargetUrl] = useState('');
   const [subdomainLength, setSubdomainLength] = useState(5);
@@ -67,17 +49,18 @@ export function CreateLinkPanel({
   const qrRef = useRef<SVGSVGElement>(null);
 
   const normalizedPath = useMemo(() => normalizeLinkPath(path), [path]);
-  const pathError = useMemo(() => getLinkPathError(path), [path]);
-  const targetUrlError = useMemo(
-    () => getTargetUrlError(targetUrl),
-    [targetUrl],
+  const pathError = useMemo(
+    () => translateValidationError(getLinkPathError(path), t),
+    [path, t],
   );
-  const lengthError =
-    !Number.isInteger(subdomainLength)
-      || subdomainLength < 3
-      || subdomainLength > 32
-      ? '随机字符长度必须是 3 至 32 的整数'
-      : '';
+  const targetUrlError = useMemo(
+    () => translateValidationError(getTargetUrlError(targetUrl.trim()), t),
+    [t, targetUrl],
+  );
+  const lengthError = translateValidationError(
+    getSubdomainLengthError(subdomainLength),
+    t,
+  );
 
   const previewShortUrl =
     target && normalizedPath
@@ -95,7 +78,7 @@ export function CreateLinkPanel({
     setCopied(false);
 
     const validationError =
-      (!target ? '请选择运行环境' : '')
+      (!target ? t('common.chooseEnvironment') : '')
       || pathError
       || targetUrlError
       || lengthError;
@@ -121,13 +104,13 @@ export function CreateLinkPanel({
       const payload: unknown = await response.json().catch(() => ({}));
 
       if (!response.ok) {
-        setError(isApiError(payload) ? payload.error : '创建短链失败，请稍后重试');
+        setError(translateApiError(payload, t, 'create.failed'));
         return;
       }
 
       setResult(payload as LinkRecord);
     } catch {
-      setError('网络连接失败，请稍后重试');
+      setError(t('common.networkError'));
     } finally {
       setSubmitting(false);
     }
@@ -141,7 +124,7 @@ export function CreateLinkPanel({
       setCopied(true);
       window.setTimeout(() => setCopied(false), 1_500);
     } catch {
-      setError('无法复制短链，请手动选择链接地址');
+      setError(t('create.copyFailed'));
     }
   }
 
@@ -166,24 +149,24 @@ export function CreateLinkPanel({
       <section className="panel create-panel" aria-labelledby="create-title">
         <div className="panel-heading">
           <div>
-            <p className="eyebrow">新建链接</p>
-            <h2 id="create-title">创建随机跳转短链</h2>
-            <p>填写短链路径和目标地址，管理令牌只会在服务端使用。</p>
+            <p className="eyebrow">{t('create.eyebrow')}</p>
+            <h2 id="create-title">{t('create.title')}</h2>
+            <p>{t('create.description')}</p>
           </div>
         </div>
 
         <form className="link-form" onSubmit={handleSubmit} noValidate>
           <div className="form-field">
-            <label htmlFor="link-path">短链路径</label>
+            <label htmlFor="link-path">{t('create.path')}</label>
             <div className="input-prefix-group">
               <span aria-hidden="true">
-                {target?.redirectBaseUrl.replace(/^https?:\/\//, '') || '未选择环境'}/
+                {target?.redirectBaseUrl.replace(/^https?:\/\//, '') || t('common.noEnvironment')}/
               </span>
               <input
                 id="link-path"
                 value={path}
                 onChange={(event) => setPath(event.target.value)}
-                placeholder="例如：download/app"
+                placeholder={t('create.pathPlaceholder')}
                 autoComplete="off"
                 aria-describedby={path && pathError
                   ? 'link-path-help link-path-error'
@@ -192,7 +175,7 @@ export function CreateLinkPanel({
               />
             </div>
             <p id="link-path-help" className="field-help">
-              {previewShortUrl || '支持多级路径，最长 128 个字符'}
+              {previewShortUrl || t('create.pathHelp')}
             </p>
             {path && pathError ? (
               <p id="link-path-error" className="field-error">{pathError}</p>
@@ -200,20 +183,20 @@ export function CreateLinkPanel({
           </div>
 
           <div className="form-field">
-            <label htmlFor="target-url">目标地址</label>
+            <label htmlFor="target-url">{t('create.targetUrl')}</label>
             <input
               id="target-url"
               type="url"
               value={targetUrl}
               onChange={(event) => setTargetUrl(event.target.value)}
-              placeholder="https://example.com/download/app.apk"
+              placeholder={t('create.targetPlaceholder')}
               aria-describedby={targetUrl && targetUrlError
                 ? 'target-url-help target-url-error'
                 : 'target-url-help'}
               aria-invalid={Boolean(targetUrl && targetUrlError)}
             />
             <p id="target-url-help" className="field-help">
-              当前版本暂不支持保留查询参数或页面锚点。
+              {t('create.targetHelp')}
             </p>
             {targetUrl && targetUrlError ? (
               <p id="target-url-error" className="field-error">{targetUrlError}</p>
@@ -221,17 +204,17 @@ export function CreateLinkPanel({
           </div>
 
           <fieldset className="mode-fieldset">
-            <legend>跳转方式</legend>
+            <legend>{t('create.mode')}</legend>
             <div className="toggle-card mode-summary">
               <span>
-                <strong>随机二级域名</strong>
-                <small>当前后台仅支持此模式；每次访问都会生成新的目标子域名。</small>
+                <strong>{t('create.randomSubdomain')}</strong>
+                <small>{t('create.randomSubdomainHelp')}</small>
               </span>
-              <span className="mode-status">已启用</span>
+              <span className="mode-status">{t('create.modeEnabled')}</span>
             </div>
 
             <div className="inline-field">
-              <label htmlFor="subdomain-length">随机字符长度</label>
+              <label htmlFor="subdomain-length">{t('create.subdomainLength')}</label>
               <input
                 id="subdomain-length"
                 type="number"
@@ -241,7 +224,7 @@ export function CreateLinkPanel({
                 value={subdomainLength}
                 onChange={(event) => setSubdomainLength(Number(event.target.value))}
               />
-              <span>位</span>
+              <span>{t('create.characters')}</span>
             </div>
 
             {lengthError ? (
@@ -262,9 +245,9 @@ export function CreateLinkPanel({
               disabled={submitting || !target}
             >
               <LinkIcon />
-              {submitting ? '正在创建…' : '创建短链'}
+              {submitting ? t('create.submitting') : t('create.submit')}
             </button>
-            <span className="action-hint">创建后可前往“链接管理”查询或删除。</span>
+            <span className="action-hint">{t('create.actionHint')}</span>
           </div>
         </form>
       </section>
@@ -274,16 +257,16 @@ export function CreateLinkPanel({
           <>
             <div className="success-badge">
               <CheckIcon />
-              创建成功
+              {t('create.success')}
             </div>
             <div className="result-heading">
-              <h2>短链已生成</h2>
-              <p>现在可以复制、打开或进入管理页继续操作。</p>
+              <h2>{t('create.resultTitle')}</h2>
+              <p>{t('create.resultDescription')}</p>
             </div>
 
             <dl className="detail-list">
               <div>
-                <dt>短链地址</dt>
+                <dt>{t('create.shortUrl')}</dt>
                 <dd>
                   <a href={resultShortUrl} target="_blank" rel="noreferrer">
                     {resultShortUrl}
@@ -291,17 +274,19 @@ export function CreateLinkPanel({
                 </dd>
               </div>
               <div>
-                <dt>跳转方式</dt>
+                <dt>{t('create.mode')}</dt>
                 <dd>
-                  随机二级域名（{result.subdomainLength ?? subdomainLength} 位）
+                  {t('create.randomModeValue', {
+                    length: result.subdomainLength ?? subdomainLength,
+                  })}
                 </dd>
               </div>
               <div>
-                <dt>目标地址</dt>
+                <dt>{t('create.targetUrl')}</dt>
                 <dd className="break-all">{getLinkTarget(result)}</dd>
               </div>
               <div>
-                <dt>响应状态</dt>
+                <dt>{t('create.responseStatus')}</dt>
                 <dd>{result.statusCode ?? 302}</dd>
               </div>
             </dl>
@@ -309,7 +294,7 @@ export function CreateLinkPanel({
             <div className="result-actions">
               <button className="button button-primary" type="button" onClick={copyShortUrl}>
                 <CopyIcon />
-                {copied ? '已复制' : '复制短链'}
+                {copied ? t('create.copied') : t('create.copy')}
               </button>
               <a
                 className="button button-secondary"
@@ -318,7 +303,7 @@ export function CreateLinkPanel({
                 rel="noreferrer"
               >
                 <ExternalLinkIcon />
-                打开短链
+                {t('create.open')}
               </a>
               <button
                 className="button button-ghost"
@@ -326,14 +311,14 @@ export function CreateLinkPanel({
                 onClick={() => onManage(result.path)}
               >
                 <SearchIcon />
-                查看详情
+                {t('create.details')}
               </button>
             </div>
 
             <div className="qr-block">
               <div>
-                <h3>短链二维码</h3>
-                <p>扫码即可访问当前短链。</p>
+                <h3>{t('create.qrTitle')}</h3>
+                <p>{t('create.qrDescription')}</p>
               </div>
               <div className="qr-code">
                 <QRCodeSVG
@@ -346,7 +331,7 @@ export function CreateLinkPanel({
                 />
               </div>
               <button className="button button-secondary" type="button" onClick={downloadQrCode}>
-                下载二维码
+                {t('create.downloadQr')}
               </button>
             </div>
           </>
@@ -355,8 +340,8 @@ export function CreateLinkPanel({
             <span className="empty-state-icon">
               <LinkIcon />
             </span>
-            <h2>等待创建短链</h2>
-            <p>创建成功后，这里会显示短链、跳转信息和二维码。</p>
+            <h2>{t('create.emptyTitle')}</h2>
+            <p>{t('create.emptyDescription')}</p>
           </div>
         )}
       </aside>

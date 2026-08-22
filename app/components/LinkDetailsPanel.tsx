@@ -1,6 +1,6 @@
 'use client';
 
-import { useState } from 'react';
+import { useMemo, useState } from 'react';
 import {
   CopyIcon,
   EditIcon,
@@ -19,6 +19,8 @@ import {
   getSubdomainLengthError,
   getTargetUrlError,
 } from '@/lib/link-validation';
+import { translateValidationError } from '@/lib/i18n/errors';
+import { useLocale } from '@/lib/i18n/LocaleProvider';
 
 interface LinkDetailsPanelProps {
   target: PublicApiTarget | null;
@@ -31,20 +33,6 @@ interface LinkDetailsPanelProps {
   onUpdate: (record: LinkRecord, update: LinkUpdateInput) => Promise<boolean>;
 }
 
-const dateFormatter = new Intl.DateTimeFormat('zh-CN', {
-  year: 'numeric',
-  month: '2-digit',
-  day: '2-digit',
-  hour: '2-digit',
-  minute: '2-digit',
-});
-
-function formatDate(value?: string): string {
-  if (!value) return '—';
-  const date = new Date(value);
-  return Number.isNaN(date.getTime()) ? value : dateFormatter.format(date);
-}
-
 export function LinkDetailsPanel({
   target,
   record,
@@ -55,6 +43,14 @@ export function LinkDetailsPanel({
   onDelete,
   onUpdate,
 }: LinkDetailsPanelProps) {
+  const { locale, t } = useLocale();
+  const dateFormatter = useMemo(() => new Intl.DateTimeFormat(locale, {
+    year: 'numeric',
+    month: '2-digit',
+    day: '2-digit',
+    hour: '2-digit',
+    minute: '2-digit',
+  }), [locale]);
   const [editing, setEditing] = useState(false);
   const [targetUrl, setTargetUrl] = useState(record ? getLinkTarget(record) : '');
   const [statusCode, setStatusCode] = useState<301 | 302>(
@@ -66,13 +62,19 @@ export function LinkDetailsPanel({
   const [enabled, setEnabled] = useState(record?.enabled !== false);
   const [formError, setFormError] = useState('');
 
+  function formatDate(value?: string): string {
+    if (!value) return '—';
+    const date = new Date(value);
+    return Number.isNaN(date.getTime()) ? value : dateFormatter.format(date);
+  }
+
   if (!record) {
     return (
       <section className="panel manager-result manager-detail" aria-live="polite">
         <div className="empty-state manager-empty">
           <span className="empty-state-icon"><SearchIcon /></span>
-          <h2>尚未选择链接</h2>
-          <p>从列表选择一条记录，或使用完整路径进行精确查询。</p>
+          <h2>{t('details.emptyTitle')}</h2>
+          <p>{t('details.emptyDescription')}</p>
         </div>
       </section>
     );
@@ -90,14 +92,14 @@ export function LinkDetailsPanel({
     const normalizedTargetUrl = targetUrl.trim();
     const targetUrlError = getTargetUrlError(normalizedTargetUrl);
     if (targetUrlError) {
-      setFormError(targetUrlError);
+      setFormError(translateValidationError(targetUrlError, t));
       return;
     }
 
     const parsedLength = Number(subdomainLength);
     const lengthError = getSubdomainLengthError(parsedLength);
     if (lengthError) {
-      setFormError(lengthError);
+      setFormError(translateValidationError(lengthError, t));
       return;
     }
 
@@ -117,15 +119,15 @@ export function LinkDetailsPanel({
       <section className="panel manager-result manager-detail" aria-live="polite">
         <div className="manager-result-header">
           <div>
-            <p className="eyebrow">编辑短链</p>
+            <p className="eyebrow">{t('details.editEyebrow')}</p>
             <h2>{record.path}</h2>
-            <p>短链路径不可修改，保存后立即生效。</p>
+            <p>{t('details.editDescription')}</p>
           </div>
         </div>
 
         <form className="edit-link-form" onSubmit={handleSave}>
           <div className="form-field">
-            <label htmlFor="edit-target-url">目标地址</label>
+            <label htmlFor="edit-target-url">{t('details.targetUrl')}</label>
             <input
               id="edit-target-url"
               value={targetUrl}
@@ -137,7 +139,7 @@ export function LinkDetailsPanel({
 
           <div className="edit-link-grid">
             <div className="form-field">
-              <label htmlFor="edit-status-code">跳转状态码</label>
+              <label htmlFor="edit-status-code">{t('details.statusCode')}</label>
               <select
                 id="edit-status-code"
                 value={statusCode}
@@ -146,12 +148,12 @@ export function LinkDetailsPanel({
                 )}
                 disabled={updating}
               >
-                <option value="302">302（临时跳转）</option>
-                <option value="301">301（永久跳转）</option>
+                <option value="302">{t('details.temporaryRedirect')}</option>
+                <option value="301">{t('details.permanentRedirect')}</option>
               </select>
             </div>
             <div className="form-field">
-              <label htmlFor="edit-subdomain-length">随机字符长度</label>
+              <label htmlFor="edit-subdomain-length">{t('details.subdomainLength')}</label>
               <input
                 id="edit-subdomain-length"
                 type="number"
@@ -167,8 +169,8 @@ export function LinkDetailsPanel({
 
           <label className="toggle-card edit-status-toggle">
             <span>
-              <strong>启用短链</strong>
-              <small>停用后访问该路径将返回未找到。</small>
+              <strong>{t('details.enableLink')}</strong>
+              <small>{t('details.disableHelp')}</small>
             </span>
             <input
               type="checkbox"
@@ -182,7 +184,7 @@ export function LinkDetailsPanel({
 
           <div className="form-actions">
             <button className="button button-primary" type="submit" disabled={updating}>
-              {updating ? '正在保存…' : '保存修改'}
+              {updating ? t('details.saving') : t('details.save')}
             </button>
             <button
               className="button button-secondary"
@@ -190,7 +192,7 @@ export function LinkDetailsPanel({
               disabled={updating}
               onClick={() => setEditing(false)}
             >
-              取消
+              {t('common.cancel')}
             </button>
           </div>
         </form>
@@ -203,82 +205,82 @@ export function LinkDetailsPanel({
       <div className="manager-result-header">
         <div>
           <span className={record.enabled === false ? 'status-badge status-off' : 'status-badge'}>
-            {record.enabled === false ? '已停用' : '已启用'}
+            {record.enabled === false ? t('details.statusDisabled') : t('details.statusEnabled')}
           </span>
           <h2>{record.path}</h2>
-          <p>{target?.name ?? '未选择环境'}</p>
+          <p>{target?.name ?? t('common.noEnvironment')}</p>
         </div>
         <div className="compact-actions">
           <button
             className="icon-button"
             type="button"
             onClick={() => setEditing(true)}
-            title="编辑短链"
+            title={t('details.edit')}
             disabled={updating || deleting}
           >
             <EditIcon />
-            <span className="sr-only">编辑短链</span>
+            <span className="sr-only">{t('details.edit')}</span>
           </button>
           <button
             className="icon-button"
             type="button"
             onClick={() => onCopy(record)}
-            title="复制短链"
+            title={t('details.copy')}
           >
             <CopyIcon />
-            <span className="sr-only">{copied ? '已复制' : '复制短链'}</span>
+            <span className="sr-only">{copied ? t('details.copied') : t('details.copy')}</span>
           </button>
           <a
             className="icon-button"
             href={shortUrl}
             target="_blank"
             rel="noreferrer"
-            title="打开短链"
+            title={t('details.open')}
           >
             <ExternalLinkIcon />
-            <span className="sr-only">打开短链</span>
+            <span className="sr-only">{t('details.open')}</span>
           </a>
         </div>
       </div>
 
       <dl className="detail-grid">
         <div>
-          <dt>短链地址</dt>
+          <dt>{t('details.shortUrl')}</dt>
           <dd><a href={shortUrl} target="_blank" rel="noreferrer">{shortUrl}</a></dd>
         </div>
         <div>
-          <dt>目标地址</dt>
+          <dt>{t('details.targetUrl')}</dt>
           <dd className="break-all">{getLinkTarget(record) || '—'}</dd>
         </div>
         <div>
-          <dt>跳转方式</dt>
+          <dt>{t('details.mode')}</dt>
           <dd>
             {record.randomSubdomain
-              ? `随机二级域名（${record.subdomainLength ?? 10} 位）`
-              : '固定地址'}
+              ? t('details.randomMode', { length: record.subdomainLength ?? 10 })
+              : t('details.fixedMode')}
           </dd>
         </div>
         <div>
-          <dt>响应状态</dt>
+          <dt>{t('details.responseStatus')}</dt>
           <dd>{record.statusCode ?? 302}</dd>
         </div>
         <div>
-          <dt>创建时间</dt>
+          <dt>{t('details.createdAt')}</dt>
           <dd>{formatDate(record.createdAt)}</dd>
         </div>
         <div>
-          <dt>更新时间</dt>
+          <dt>{t('details.updatedAt')}</dt>
           <dd>{formatDate(record.updatedAt)}</dd>
         </div>
       </dl>
 
       <div className="status-control-zone">
         <div>
-          <h3>{record.enabled === false ? '启用短链' : '停用短链'}</h3>
+          <h3>{record.enabled === false ? t('details.enableLink') : t('details.disableLink')}</h3>
           <p>
             {record.enabled === false
-              ? '启用后，该路径会恢复跳转。'
-              : '停用后保留配置，但访问该路径将返回未找到。'}
+              ? t('details.enableDescription')
+              : t('details.disableDescription')}
           </p>
         </div>
         <button
@@ -292,15 +294,15 @@ export function LinkDetailsPanel({
         >
           <PowerIcon />
           {updating
-            ? '正在更新…'
-            : record.enabled === false ? '启用短链' : '停用短链'}
+            ? t('details.updating')
+            : record.enabled === false ? t('details.enableLink') : t('details.disableLink')}
         </button>
       </div>
 
       <div className="danger-zone">
         <div>
-          <h3>删除短链</h3>
-          <p>删除后，访问该路径将立即返回未找到。</p>
+          <h3>{t('details.deleteTitle')}</h3>
+          <p>{t('details.deleteDescription')}</p>
         </div>
         <button
           className="button button-danger"
@@ -309,7 +311,7 @@ export function LinkDetailsPanel({
           disabled={deleting}
         >
           <TrashIcon />
-          {deleting ? '正在删除…' : '删除短链'}
+          {deleting ? t('details.deleting') : t('details.delete')}
         </button>
       </div>
     </section>
