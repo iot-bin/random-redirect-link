@@ -19,7 +19,6 @@ import {
   normalizeLinkPrefix,
 } from '@/lib/link-path';
 import type {
-  ApiError,
   DeleteLinkResponse,
   LinkBatchAction,
   LinkBatchResponse,
@@ -28,6 +27,11 @@ import type {
   LinkUpdateInput,
   PublicApiTarget,
 } from '@/lib/link-types';
+import {
+  translateApiError,
+  translateValidationError,
+} from '@/lib/i18n/errors';
+import { useLocale } from '@/lib/i18n/LocaleProvider';
 
 interface LinkManagerPanelProps {
   target: PublicApiTarget | null;
@@ -35,14 +39,6 @@ interface LinkManagerPanelProps {
 }
 
 const PAGE_SIZE = 25;
-
-function isApiError(value: unknown): value is ApiError {
-  return (
-    typeof value === 'object'
-    && value !== null
-    && typeof (value as Record<string, unknown>).error === 'string'
-  );
-}
 
 function isLinkRecord(value: unknown): value is LinkRecord {
   return (
@@ -135,6 +131,8 @@ export function LinkManagerPanel({
   target,
   initialPath = '',
 }: LinkManagerPanelProps) {
+  const { t } = useLocale();
+  const tRef = useRef(t);
   const [searchInput, setSearchInput] = useState(initialPath);
   const [activePrefix, setActivePrefix] = useState('');
   const [items, setItems] = useState<LinkRecord[]>([]);
@@ -153,6 +151,10 @@ export function LinkManagerPanel({
   const [copiedPath, setCopiedPath] = useState('');
   const copyTimerRef = useRef<number | null>(null);
 
+  useEffect(() => {
+    tRef.current = t;
+  }, [t]);
+
   const requestPage = useCallback(
     async (
       cursor: string | null,
@@ -162,7 +164,7 @@ export function LinkManagerPanel({
       if (!target) {
         setItems([]);
         setNextCursor(null);
-        setListError('请选择运行环境');
+        setListError(tRef.current('common.chooseEnvironment'));
         return null;
       }
 
@@ -184,13 +186,13 @@ export function LinkManagerPanel({
         const payload: unknown = await response.json().catch(() => ({}));
 
         if (!response.ok) {
-          setListError(isApiError(payload) ? payload.error : '列表加载失败，请稍后重试');
+          setListError(translateApiError(payload, tRef.current, 'manager.listLoadFailed'));
           return null;
         }
 
         const result = parseLinkListResponse(payload);
         if (!result) {
-          setListError('后台返回的列表格式无效，请稍后重试');
+          setListError(tRef.current('manager.invalidList'));
           return null;
         }
 
@@ -202,7 +204,7 @@ export function LinkManagerPanel({
         if (requestError instanceof Error && requestError.name === 'AbortError') {
           return null;
         }
-        setListError('网络连接失败，请稍后重试');
+        setListError(tRef.current('common.networkError'));
         return null;
       } finally {
         setListLoading(false);
@@ -220,11 +222,11 @@ export function LinkManagerPanel({
       setNotice('');
 
       if (!target) {
-        setSearchError('请选择运行环境');
+        setSearchError(tRef.current('common.chooseEnvironment'));
         return;
       }
       if (pathError) {
-        setSearchError(pathError);
+        setSearchError(translateValidationError(pathError, tRef.current));
         return;
       }
 
@@ -237,11 +239,11 @@ export function LinkManagerPanel({
         const payload: unknown = await response.json().catch(() => ({}));
 
         if (!response.ok) {
-          setSearchError(isApiError(payload) ? payload.error : '查询失败，请稍后重试');
+          setSearchError(translateApiError(payload, tRef.current, 'manager.queryFailed'));
           return;
         }
         if (!isLinkRecord(payload)) {
-          setSearchError('后台返回的链接格式无效，请稍后重试');
+          setSearchError(tRef.current('manager.invalidRecord'));
           return;
         }
 
@@ -249,7 +251,7 @@ export function LinkManagerPanel({
         setSearchInput(path);
       } catch (requestError) {
         if (requestError instanceof Error && requestError.name === 'AbortError') return;
-        setSearchError('网络连接失败，请稍后重试');
+        setSearchError(tRef.current('common.networkError'));
       } finally {
         setLookupLoading(false);
       }
@@ -287,7 +289,7 @@ export function LinkManagerPanel({
     if (prefix) {
       const prefixError = getLinkPrefixError(prefix);
       if (prefixError) {
-        setSearchError(prefixError);
+        setSearchError(translateValidationError(prefixError, t));
         return;
       }
     }
@@ -329,7 +331,7 @@ export function LinkManagerPanel({
         buildShortUrl(target.redirectBaseUrl, record.path),
       );
       setCopiedPath(record.path);
-      setNotice(`已复制短链“${record.path}”`);
+      setNotice(t('manager.copiedNotice', { path: record.path }));
       if (copyTimerRef.current !== null) {
         window.clearTimeout(copyTimerRef.current);
       }
@@ -338,7 +340,7 @@ export function LinkManagerPanel({
         setNotice('');
       }, 1_800);
     } catch {
-      setSearchError('无法复制短链，请手动选择链接地址');
+      setSearchError(t('manager.copyFailed'));
     }
   }
 
@@ -364,11 +366,11 @@ export function LinkManagerPanel({
       const payload: unknown = await response.json().catch(() => ({}));
 
       if (!response.ok) {
-        setSearchError(isApiError(payload) ? payload.error : '更新失败，请稍后重试');
+        setSearchError(translateApiError(payload, t, 'manager.updateFailed'));
         return false;
       }
       if (!isLinkRecord(payload)) {
-        setSearchError('后台返回的更新结果无效，请稍后重试');
+        setSearchError(t('manager.invalidUpdate'));
         return false;
       }
 
@@ -379,10 +381,10 @@ export function LinkManagerPanel({
       setSelectedRecord((current) => (
         current?.path === updatedRecord.path ? updatedRecord : current
       ));
-      setNotice(`短链“${updatedRecord.path}”已更新`);
+      setNotice(t('manager.updatedNotice', { path: updatedRecord.path }));
       return true;
     } catch {
-      setSearchError('网络连接失败，请稍后重试');
+      setSearchError(t('common.networkError'));
       return false;
     } finally {
       setUpdatingPath('');
@@ -408,7 +410,7 @@ export function LinkManagerPanel({
 
     if (action === 'delete') {
       const confirmed = window.confirm(
-        `确定要删除已选择的 ${selectedPaths.length} 条短链吗？此操作无法撤销。`,
+        t('manager.batchDeleteConfirm', { count: selectedPaths.length }),
       );
       if (!confirmed) return;
     }
@@ -430,13 +432,13 @@ export function LinkManagerPanel({
       const payload: unknown = await response.json().catch(() => ({}));
 
       if (!response.ok) {
-        setSearchError(isApiError(payload) ? payload.error : '批量操作失败，请稍后重试');
+        setSearchError(translateApiError(payload, t, 'manager.batchFailed'));
         return;
       }
 
       const result = parseLinkBatchResponse(payload);
       if (!result) {
-        setSearchError('后台返回的批量操作结果无效，请稍后重试');
+        setSearchError(t('manager.invalidBatch'));
         return;
       }
 
@@ -457,11 +459,14 @@ export function LinkManagerPanel({
         .map((record) => updatedItems.get(record.path) ?? record));
 
       const actionLabel = action === 'enable'
-        ? '启用'
-        : action === 'disable' ? '停用' : '删除';
-      setNotice(`批量${actionLabel}完成：成功 ${result.succeeded.length} 条`);
+        ? t('manager.actionEnable')
+        : action === 'disable' ? t('manager.actionDisable') : t('manager.actionDelete');
+      setNotice(t('manager.batchSuccess', {
+        action: actionLabel,
+        count: result.succeeded.length,
+      }));
       if (result.failed.length > 0) {
-        setSearchError(`另有 ${result.failed.length} 条操作失败，请刷新后重试`);
+        setSearchError(t('manager.batchPartialFailure', { count: result.failed.length }));
       }
 
       const currentCursor = cursorStack[cursorStack.length - 1] ?? null;
@@ -476,7 +481,7 @@ export function LinkManagerPanel({
         if (previousPage) setCursorStack((current) => current.slice(0, -1));
       }
     } catch {
-      setSearchError('网络连接失败，请稍后重试');
+      setSearchError(t('common.networkError'));
     } finally {
       setBatchAction(null);
     }
@@ -486,7 +491,10 @@ export function LinkManagerPanel({
     if (!target) return;
 
     const confirmed = window.confirm(
-      `确定要从“${target.name}”删除短链“${record.path}”吗？此操作无法撤销。`,
+      t('manager.deleteConfirm', {
+        environment: target.name,
+        path: record.path,
+      }),
     );
     if (!confirmed) return;
 
@@ -502,12 +510,12 @@ export function LinkManagerPanel({
       const payload: unknown = await response.json().catch(() => ({}));
 
       if (!response.ok) {
-        setSearchError(isApiError(payload) ? payload.error : '删除失败，请稍后重试');
+        setSearchError(translateApiError(payload, t, 'manager.deleteFailed'));
         return;
       }
 
       if (!isDeleteLinkResponse(payload)) {
-        setSearchError('后台返回的删除结果无效，请稍后重试');
+        setSearchError(t('manager.invalidDelete'));
         return;
       }
 
@@ -516,7 +524,7 @@ export function LinkManagerPanel({
         current?.path === result.path ? null : current
       ));
       setItems((current) => current.filter((item) => item.path !== result.path));
-      setNotice(`短链“${result.path}”已删除`);
+      setNotice(t('manager.deletedNotice', { path: result.path }));
 
       const currentCursor = cursorStack[cursorStack.length - 1] ?? null;
       const refreshed = await requestPage(currentCursor, activePrefix);
@@ -527,7 +535,7 @@ export function LinkManagerPanel({
         if (previousPage) setCursorStack((current) => current.slice(0, -1));
       }
     } catch {
-      setSearchError('网络连接失败，请稍后重试');
+      setSearchError(t('common.networkError'));
     } finally {
       setDeletingPath('');
     }
@@ -535,30 +543,30 @@ export function LinkManagerPanel({
 
   const pageNumber = cursorStack.length;
   const emptyMessage = activePrefix
-    ? `没有路径以“${activePrefix}”开头的短链。`
-    : '当前环境暂时没有短链记录。';
+    ? t('manager.emptyPrefix', { prefix: activePrefix })
+    : t('manager.emptyAll');
 
   return (
     <div className="manager-workspace">
       <section className="panel lookup-panel" aria-labelledby="lookup-title">
         <div className="panel-heading panel-heading-row">
           <div>
-            <p className="eyebrow">列表与查询</p>
-            <h2 id="lookup-title">浏览后台短链</h2>
-            <p>留空显示全部链接，也可以按路径前缀筛选或精确定位。</p>
+            <p className="eyebrow">{t('manager.eyebrow')}</p>
+            <h2 id="lookup-title">{t('manager.title')}</h2>
+            <p>{t('manager.description')}</p>
           </div>
-          <span className="environment-pill">{target?.name ?? '未选择环境'}</span>
+          <span className="environment-pill">{target?.name ?? t('common.noEnvironment')}</span>
         </div>
 
         <form className="lookup-form" onSubmit={handleFilterSubmit}>
           <div className="form-field">
-            <label htmlFor="lookup-path">路径或路径前缀</label>
+            <label htmlFor="lookup-path">{t('manager.pathOrPrefix')}</label>
             <div className="manager-search-row">
               <input
                 id="lookup-path"
                 value={searchInput}
                 onChange={(event) => setSearchInput(event.target.value)}
-                placeholder="留空显示全部，例如：download/"
+                placeholder={t('manager.searchPlaceholder')}
                 autoComplete="off"
                 aria-invalid={searchError ? true : undefined}
                 aria-describedby={searchError ? 'lookup-help lookup-error' : 'lookup-help'}
@@ -569,7 +577,7 @@ export function LinkManagerPanel({
                 disabled={listLoading || !target}
               >
                 <SearchIcon />
-                {listLoading ? '正在筛选…' : '筛选列表'}
+                {listLoading ? t('manager.filtering') : t('manager.filter')}
               </button>
               <button
                 className="button button-secondary"
@@ -578,11 +586,11 @@ export function LinkManagerPanel({
                 onClick={() => void lookupExact(searchInput)}
               >
                 <LinkIcon />
-                {lookupLoading ? '正在查询…' : '精确查询'}
+                {lookupLoading ? t('manager.querying') : t('manager.exactQuery')}
               </button>
             </div>
             <p className="field-help" id="lookup-help">
-              列表按路径升序排列；前缀筛选区分大小写，精确查询需要完整路径。
+              {t('manager.searchHelp')}
             </p>
           </div>
         </form>
@@ -604,17 +612,22 @@ export function LinkManagerPanel({
         >
           <header className="link-browser-header">
             <div>
-              <p className="eyebrow">链接列表</p>
+              <p className="eyebrow">{t('manager.listEyebrow')}</p>
               <h2 id="link-list-title">
-                {activePrefix ? `前缀：${activePrefix}` : '全部链接'}
+                {activePrefix
+                  ? t('manager.prefixTitle', { prefix: activePrefix })
+                  : t('manager.allLinks')}
               </h2>
-              <p role="status">第 {pageNumber} 页 · 本页 {items.length} 条</p>
+              <p role="status">{t('manager.pageSummary', {
+                page: pageNumber,
+                count: items.length,
+              })}</p>
             </div>
             <button
               className="icon-button"
               type="button"
-              title="刷新当前页"
-              aria-label="刷新当前页"
+              title={t('manager.refresh')}
+              aria-label={t('manager.refresh')}
               disabled={listLoading || !target}
               onClick={() => void requestPage(
                 cursorStack[cursorStack.length - 1] ?? null,
@@ -632,16 +645,16 @@ export function LinkManagerPanel({
           ) : null}
 
           {selectedPaths.length > 0 ? (
-            <div className="bulk-toolbar" role="region" aria-label="批量操作">
+            <div className="bulk-toolbar" role="region" aria-label={t('manager.bulkRegion')}>
               <div>
-                <strong>已选择 {selectedPaths.length} 条</strong>
+                <strong>{t('manager.selectedCount', { count: selectedPaths.length })}</strong>
                 <button
                   className="bulk-clear-button"
                   type="button"
                   disabled={batchAction !== null || listLoading}
                   onClick={() => setSelectedPaths([])}
                 >
-                  取消选择
+                  {t('manager.clearSelection')}
                 </button>
               </div>
               <div className="bulk-actions">
@@ -651,7 +664,7 @@ export function LinkManagerPanel({
                   disabled={batchAction !== null || listLoading}
                   onClick={() => void runBatchAction('enable')}
                 >
-                  {batchAction === 'enable' ? '正在启用…' : '批量启用'}
+                  {batchAction === 'enable' ? t('manager.enabling') : t('manager.bulkEnable')}
                 </button>
                 <button
                   className="button button-secondary"
@@ -659,7 +672,7 @@ export function LinkManagerPanel({
                   disabled={batchAction !== null || listLoading}
                   onClick={() => void runBatchAction('disable')}
                 >
-                  {batchAction === 'disable' ? '正在停用…' : '批量停用'}
+                  {batchAction === 'disable' ? t('manager.disabling') : t('manager.bulkDisable')}
                 </button>
                 <button
                   className="button button-danger"
@@ -667,7 +680,7 @@ export function LinkManagerPanel({
                   disabled={batchAction !== null || listLoading}
                   onClick={() => void runBatchAction('delete')}
                 >
-                  {batchAction === 'delete' ? '正在删除…' : '批量删除'}
+                  {batchAction === 'delete' ? t('manager.deleting') : t('manager.bulkDelete')}
                 </button>
               </div>
             </div>
@@ -686,7 +699,7 @@ export function LinkManagerPanel({
             onToggleAll={toggleAllVisible}
           />
 
-          <nav className="pagination-controls" aria-label="链接列表分页">
+          <nav className="pagination-controls" aria-label={t('manager.pagination')}>
             <button
               className="button button-secondary"
               type="button"
@@ -694,16 +707,16 @@ export function LinkManagerPanel({
               onClick={() => void handlePreviousPage()}
             >
               <ChevronLeftIcon />
-              上一页
+              {t('manager.previous')}
             </button>
-            <span>第 {pageNumber} 页</span>
+            <span>{t('manager.page', { page: pageNumber })}</span>
             <button
               className="button button-secondary"
               type="button"
               disabled={!nextCursor || listLoading}
               onClick={() => void handleNextPage()}
             >
-              下一页
+              {t('manager.next')}
               <ChevronRightIcon />
             </button>
           </nav>

@@ -1,6 +1,6 @@
 'use client';
 
-import { useEffect, useRef } from 'react';
+import { useEffect, useMemo, useRef } from 'react';
 import {
   CopyIcon,
   ExternalLinkIcon,
@@ -8,6 +8,7 @@ import {
 } from '@/app/components/Icons';
 import { buildShortUrl, getLinkTarget } from '@/lib/link-path';
 import type { LinkRecord } from '@/lib/link-types';
+import { useLocale } from '@/lib/i18n/LocaleProvider';
 
 interface LinkListProps {
   items: LinkRecord[];
@@ -34,20 +35,6 @@ interface LinkActionsProps {
   shortUrl: string;
   onSelect: (record: LinkRecord) => void;
   onCopy: (record: LinkRecord) => void;
-}
-
-const dateFormatter = new Intl.DateTimeFormat('zh-CN', {
-  year: 'numeric',
-  month: '2-digit',
-  day: '2-digit',
-  hour: '2-digit',
-  minute: '2-digit',
-});
-
-function formatDate(value?: string): string {
-  if (!value) return '—';
-  const date = new Date(value);
-  return Number.isNaN(date.getTime()) ? value : dateFormatter.format(date);
 }
 
 function SelectionCheckbox({
@@ -80,35 +67,37 @@ function LinkActions({
   onSelect,
   onCopy,
 }: LinkActionsProps) {
+  const { t } = useLocale();
+
   return (
     <div className="table-actions">
       <button
         className="icon-button icon-button-small"
         type="button"
-        title="查看详情"
+        title={t('list.viewDetails')}
         onClick={() => onSelect(record)}
       >
         <LinkIcon />
-        <span className="sr-only">查看“{record.path}”详情</span>
+        <span className="sr-only">{t('list.viewDetailsFor', { path: record.path })}</span>
       </button>
       <button
         className="icon-button icon-button-small"
         type="button"
-        title="复制短链"
+        title={t('list.copy')}
         onClick={() => onCopy(record)}
       >
         <CopyIcon />
-        <span className="sr-only">复制“{record.path}”短链</span>
+        <span className="sr-only">{t('list.copyFor', { path: record.path })}</span>
       </button>
       <a
         className="icon-button icon-button-small"
         href={shortUrl}
         target="_blank"
         rel="noreferrer"
-        title="打开短链"
+        title={t('list.open')}
       >
         <ExternalLinkIcon />
-        <span className="sr-only">打开“{record.path}”短链</span>
+        <span className="sr-only">{t('list.openFor', { path: record.path })}</span>
       </a>
     </div>
   );
@@ -126,11 +115,26 @@ export function LinkList({
   onToggleSelection,
   onToggleAll,
 }: LinkListProps) {
+  const { locale, t } = useLocale();
+  const dateFormatter = useMemo(() => new Intl.DateTimeFormat(locale, {
+    year: 'numeric',
+    month: '2-digit',
+    day: '2-digit',
+    hour: '2-digit',
+    minute: '2-digit',
+  }), [locale]);
+
+  function formatDate(value?: string): string {
+    if (!value) return '—';
+    const date = new Date(value);
+    return Number.isNaN(date.getTime()) ? value : dateFormatter.format(date);
+  }
+
   if (loading && items.length === 0) {
     return (
       <div className="list-state" role="status">
         <span className="loading-dot" />
-        <p>正在读取链接列表…</p>
+        <p>{t('list.loading')}</p>
       </div>
     );
   }
@@ -139,7 +143,7 @@ export function LinkList({
     return (
       <div className="list-state">
         <span className="empty-state-icon"><LinkIcon /></span>
-        <h3>没有可显示的链接</h3>
+        <h3>{t('list.emptyTitle')}</h3>
         <p>{emptyMessage}</p>
       </div>
     );
@@ -153,22 +157,22 @@ export function LinkList({
     <div className={loading ? 'link-list-content is-loading' : 'link-list-content'}>
       <div className="link-table-wrap">
         <table className="link-table">
-          <caption className="sr-only">当前环境中的短链列表</caption>
+          <caption className="sr-only">{t('list.caption')}</caption>
           <thead>
             <tr>
               <th scope="col">
                 <SelectionCheckbox
                   checked={allSelected}
                   indeterminate={someSelected && !allSelected}
-                  label="选择本页全部短链"
+                  label={t('list.selectAll')}
                   onChange={onToggleAll}
                 />
               </th>
-              <th scope="col">状态</th>
-              <th scope="col">短链路径</th>
-              <th scope="col">目标地址</th>
-              <th scope="col">更新时间</th>
-              <th scope="col"><span className="sr-only">操作</span></th>
+              <th scope="col">{t('list.status')}</th>
+              <th scope="col">{t('list.path')}</th>
+              <th scope="col">{t('list.target')}</th>
+              <th scope="col">{t('list.updatedAt')}</th>
+              <th scope="col"><span className="sr-only">{t('common.actions')}</span></th>
             </tr>
           </thead>
           <tbody>
@@ -181,13 +185,13 @@ export function LinkList({
                   <td>
                     <SelectionCheckbox
                       checked={selectedPathSet.has(record.path)}
-                      label={`选择短链“${record.path}”`}
+                      label={t('list.selectOne', { path: record.path })}
                       onChange={() => onToggleSelection(record.path)}
                     />
                   </td>
                   <td>
                     <span className={record.enabled === false ? 'status-badge status-off' : 'status-badge'}>
-                      {record.enabled === false ? '停用' : '启用'}
+                      {record.enabled === false ? t('common.disabled') : t('common.enabled')}
                     </span>
                   </td>
                   <td>
@@ -236,7 +240,7 @@ export function LinkList({
                 <div className="link-card-select">
                   <SelectionCheckbox
                     checked={selectedPathSet.has(record.path)}
-                    label={`选择短链“${record.path}”`}
+                    label={t('list.selectOne', { path: record.path })}
                     onChange={() => onToggleSelection(record.path)}
                   />
                   <button
@@ -248,16 +252,16 @@ export function LinkList({
                   </button>
                 </div>
                 <span className={record.enabled === false ? 'status-badge status-off' : 'status-badge'}>
-                  {record.enabled === false ? '停用' : '启用'}
+                  {record.enabled === false ? t('common.disabled') : t('common.enabled')}
                 </span>
               </div>
               <dl>
                 <div>
-                  <dt>目标地址</dt>
+                  <dt>{t('list.target')}</dt>
                   <dd>{getLinkTarget(record) || '—'}</dd>
                 </div>
                 <div>
-                  <dt>更新时间</dt>
+                  <dt>{t('list.updatedAt')}</dt>
                   <dd>{formatDate(record.updatedAt ?? record.createdAt)}</dd>
                 </div>
               </dl>

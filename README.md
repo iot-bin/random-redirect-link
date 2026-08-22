@@ -88,6 +88,16 @@ You will be redirected to the login page. Enter the password you configured in `
 
 You can start editing the page by modifying `app/page.tsx`. The page auto-updates as you edit the file.
 
+## Admin Lambda Source
+
+The version-controlled source for `random-redirect-link-admin` is located in
+[`lambda/admin`](lambda/admin). It is split into small ESM modules and uses the
+AWS SDK v3 included in the Node.js 24 Lambda runtime by default. A self-contained
+package with pinned SDK clients is also available as an optional build.
+
+See the [Chinese Admin Lambda deployment guide](docs/lambda-admin-deployment.zh-CN.md)
+for packaging, API Gateway integration, smoke testing, and rollback instructions.
+
 This project uses [`next/font`](https://nextjs.org/docs/app/building-your-application/optimizing/fonts) to automatically optimize and load [Geist](https://vercel.com/font), a new font family for Vercel.
 
 ## Learn More

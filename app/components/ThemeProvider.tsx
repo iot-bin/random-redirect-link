@@ -1,6 +1,7 @@
 'use client';
 
 import { useSyncExternalStore } from 'react';
+import { useLocale } from '@/lib/i18n/LocaleProvider';
 
 type Theme = 'light' | 'dark';
 
@@ -55,7 +56,8 @@ export function useTheme(): ThemeContextValue {
 
 export function ThemeToggle({ extraClass }: { extraClass?: string }) {
   const { theme, toggle } = useTheme();
-  const label = theme === 'light' ? '切换到深色模式' : '切换到浅色模式';
+  const { t } = useLocale();
+  const label = theme === 'light' ? t('theme.toDark') : t('theme.toLight');
   const cls = extraClass ? `theme-toggle-btn ${extraClass}` : 'theme-toggle-btn';
 
   return (

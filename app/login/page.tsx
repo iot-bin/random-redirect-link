@@ -3,10 +3,14 @@
 import Image from 'next/image';
 import { useState } from 'react';
 import { useRouter } from 'next/navigation';
+import { LanguageSwitcher } from '../components/LanguageSwitcher';
 import { ThemeToggle } from '../components/ThemeProvider';
+import { translateApiError } from '@/lib/i18n/errors';
+import { useLocale } from '@/lib/i18n/LocaleProvider';
 
 export default function LoginPage() {
   const router = useRouter();
+  const { t } = useLocale();
   const [password, setPassword] = useState('');
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
@@ -16,7 +20,7 @@ export default function LoginPage() {
     setError('');
     
     if (!password) {
-      setError('请输入密码');
+      setError(t('login.passwordRequired'));
       return;
     }
 
@@ -31,14 +35,14 @@ export default function LoginPage() {
       const data = await r.json().catch(() => ({}));
 
       if (!r.ok) {
-        setError(data?.error || '登录失败');
+        setError(translateApiError(data, t, 'login.failed'));
         return;
       }
 
       router.push('/');
       router.refresh();
     } catch {
-      setError('网络错误，请重试');
+      setError(t('login.networkError'));
     } finally {
       setLoading(false);
     }
@@ -46,7 +50,10 @@ export default function LoginPage() {
 
   return (
     <div style={styles.page}>
-      <ThemeToggle extraClass="theme-toggle-fixed" />
+      <div className="login-toolbar">
+        <LanguageSwitcher compact />
+        <ThemeToggle />
+      </div>
       <div style={styles.container}>
         <div style={styles.logoRow}>
           <Image
@@ -58,19 +65,19 @@ export default function LoginPage() {
             priority
           />
         </div>
-        <h1 style={styles.h1}>欢迎回来</h1>
-        <p style={styles.sub}>请输入管理密码以访问短链控制台</p>
+        <h1 style={styles.h1}>{t('login.welcome')}</h1>
+        <p style={styles.sub}>{t('login.description')}</p>
 
         <div style={styles.card}>
           <form onSubmit={onLogin} style={styles.form}>
             <div style={styles.fieldGroup}>
-              <label htmlFor="console-password" style={styles.fieldLabel}>管理密码</label>
+              <label htmlFor="console-password" style={styles.fieldLabel}>{t('login.password')}</label>
               <input
                 id="console-password"
                 type="password"
                 value={password}
                 onChange={(e) => setPassword(e.target.value)}
-                placeholder="请输入密码"
+                placeholder={t('login.passwordPlaceholder')}
                 style={styles.input}
                 autoComplete="current-password"
                 aria-invalid={Boolean(error)}
@@ -89,12 +96,12 @@ export default function LoginPage() {
             ) : null}
 
             <button type="submit" disabled={loading} style={loading ? { ...styles.primaryBtn, opacity: 0.7, cursor: 'not-allowed' } : styles.primaryBtn}>
-              {loading ? '登录中...' : '登录'}
+              {loading ? t('login.submitting') : t('login.submit')}
             </button>
           </form>
         </div>
 
-        <p style={styles.footer}>短链管理控制台 &mdash; 安全访问</p>
+        <p style={styles.footer}>{t('login.footer')}</p>
       </div>
     </div>
   );

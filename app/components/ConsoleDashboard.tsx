@@ -12,7 +12,9 @@ import {
   SearchIcon,
 } from '@/app/components/Icons';
 import { LinkManagerPanel } from '@/app/components/LinkManagerPanel';
+import { LanguageSwitcher } from '@/app/components/LanguageSwitcher';
 import { ThemeToggle } from '@/app/components/ThemeProvider';
+import { useLocale } from '@/lib/i18n/LocaleProvider';
 import type { PublicApiTarget } from '@/lib/link-types';
 
 type ConsoleSection = 'create' | 'manage';
@@ -22,22 +24,12 @@ interface ConsoleDashboardProps {
   defaultTargetId: string | null;
 }
 
-const sectionCopy: Record<ConsoleSection, { title: string; description: string }> = {
-  create: {
-    title: '创建短链',
-    description: '创建新的随机子域跳转，并即时获取短链和二维码。',
-  },
-  manage: {
-    title: '链接管理',
-    description: '浏览和筛选后台记录，查看详情或删除已有短链。',
-  },
-};
-
 export function ConsoleDashboard({
   targets,
   defaultTargetId,
 }: ConsoleDashboardProps) {
   const router = useRouter();
+  const { t } = useLocale();
   const initialTargetId =
     targets.some((target) => target.id === defaultTargetId)
       ? defaultTargetId ?? ''
@@ -90,14 +82,22 @@ export function ConsoleDashboard({
     router.refresh();
   }
 
-  const copy = sectionCopy[section];
+  const copy = section === 'create'
+    ? {
+        title: t('dashboard.create'),
+        description: t('dashboard.createDescription'),
+      }
+    : {
+        title: t('dashboard.manage'),
+        description: t('dashboard.manageDescription'),
+      };
 
   return (
     <div className="console-shell">
       <button
         className={mobileMenuOpen ? 'sidebar-backdrop is-open' : 'sidebar-backdrop'}
         type="button"
-        aria-label="关闭导航菜单"
+        aria-label={t('dashboard.closeMenu')}
         onClick={() => setMobileMenuOpen(false)}
       />
 
@@ -105,12 +105,12 @@ export function ConsoleDashboard({
         <div className="sidebar-brand">
           <Image src="/logo.webp" alt="" width={38} height={38} priority />
           <div>
-            <strong>短链控制台</strong>
-            <span>随机跳转管理</span>
+            <strong>{t('dashboard.brand')}</strong>
+            <span>{t('dashboard.brandSubtitle')}</span>
           </div>
         </div>
 
-        <nav className="sidebar-nav" aria-label="主导航">
+        <nav className="sidebar-nav" aria-label={t('dashboard.mainNavigation')}>
           <button
             className={section === 'create' ? 'nav-item is-active' : 'nav-item'}
             type="button"
@@ -118,7 +118,7 @@ export function ConsoleDashboard({
             onClick={() => navigate('create')}
           >
             <CreateIcon />
-            <span>创建短链</span>
+            <span>{t('dashboard.create')}</span>
           </button>
           <button
             className={section === 'manage' ? 'nav-item is-active' : 'nav-item'}
@@ -127,14 +127,14 @@ export function ConsoleDashboard({
             onClick={() => navigate('manage')}
           >
             <SearchIcon />
-            <span>链接管理</span>
+            <span>{t('dashboard.manage')}</span>
           </button>
         </nav>
 
         <div className="sidebar-spacer" />
 
         <div className="sidebar-environment">
-          <label htmlFor="environment-select">运行环境</label>
+          <label htmlFor="environment-select">{t('dashboard.environment')}</label>
           <select
             id="environment-select"
             value={selectedTargetId}
@@ -149,20 +149,22 @@ export function ConsoleDashboard({
                 <option key={target.id} value={target.id}>{target.name}</option>
               ))
             ) : (
-              <option value="">未配置环境</option>
+              <option value="">{t('dashboard.environmentMissing')}</option>
             )}
           </select>
           <div className="environment-domain">
             <LinkIcon />
-            <span>{selectedTarget?.redirectBaseUrl || '请配置 API_TARGETS'}</span>
+            <span>{selectedTarget?.redirectBaseUrl || t('dashboard.configureTargets')}</span>
           </div>
         </div>
+
+        <LanguageSwitcher />
 
         <div className="sidebar-footer">
           <ThemeToggle />
           <button className="sidebar-action" type="button" onClick={logout}>
             <LogoutIcon />
-            <span>退出登录</span>
+            <span>{t('dashboard.logout')}</span>
           </button>
         </div>
       </aside>
@@ -172,7 +174,7 @@ export function ConsoleDashboard({
           <button
             className="icon-button"
             type="button"
-            aria-label="打开导航菜单"
+            aria-label={t('dashboard.openMenu')}
             aria-expanded={mobileMenuOpen}
             onClick={() => setMobileMenuOpen(true)}
           >
@@ -180,14 +182,14 @@ export function ConsoleDashboard({
           </button>
           <div className="mobile-brand">
             <Image src="/logo.webp" alt="" width={30} height={30} />
-            <strong>短链控制台</strong>
+            <strong>{t('dashboard.brand')}</strong>
           </div>
           <ThemeToggle />
         </header>
 
         <div className="page-header">
           <div>
-            <p className="eyebrow">短链管理控制台</p>
+            <p className="eyebrow">{t('dashboard.eyebrow')}</p>
             <h1>{copy.title}</h1>
             <p>{copy.description}</p>
           </div>
@@ -206,7 +208,7 @@ export function ConsoleDashboard({
 
         {targets.length === 0 ? (
           <div className="alert alert-error configuration-alert" role="alert">
-            尚未配置运行环境，请在服务端设置 API_TARGETS 环境变量。
+            {t('dashboard.configurationError')}
           </div>
         ) : null}
 
