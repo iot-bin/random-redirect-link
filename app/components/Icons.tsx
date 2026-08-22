@@ -67,6 +67,24 @@ export function TrashIcon({ className }: IconProps) {
   );
 }
 
+export function EditIcon({ className }: IconProps) {
+  return (
+    <svg {...iconProps} className={className}>
+      <path d="M12 20h9" />
+      <path d="M16.5 3.5a2.12 2.12 0 0 1 3 3L8 18l-4 1 1-4Z" />
+    </svg>
+  );
+}
+
+export function PowerIcon({ className }: IconProps) {
+  return (
+    <svg {...iconProps} className={className}>
+      <path d="M12 2v10" />
+      <path d="M18.36 6.64a9 9 0 1 1-12.72 0" />
+    </svg>
+  );
+}
+
 export function LogoutIcon({ className }: IconProps) {
   return (
     <svg {...iconProps} className={className}>

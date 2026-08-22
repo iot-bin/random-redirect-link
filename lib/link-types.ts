@@ -22,6 +22,33 @@ export interface LinkListResponse {
   nextCursor: string | null;
 }
 
+export interface LinkUpdateInput {
+  enabled?: boolean;
+  targetUrl?: string;
+  statusCode?: 301 | 302;
+  subdomainLength?: number;
+  expectedUpdatedAt?: string;
+}
+
+export type LinkBatchAction = 'enable' | 'disable' | 'delete';
+
+export interface LinkBatchSuccess {
+  path: string;
+  item?: LinkRecord;
+}
+
+export interface LinkBatchFailure {
+  path: string;
+  code: string;
+  error: string;
+}
+
+export interface LinkBatchResponse {
+  action: LinkBatchAction;
+  succeeded: LinkBatchSuccess[];
+  failed: LinkBatchFailure[];
+}
+
 export interface ApiError {
   error: string;
   code?: string;

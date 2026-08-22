@@ -3,8 +3,8 @@ import 'server-only';
 import { NextResponse } from 'next/server';
 import { getApiTargetById } from '@/lib/api-targets';
 
-type AdminMethod = 'GET' | 'POST' | 'DELETE';
-type AdminOperation = 'list' | 'get' | 'create' | 'delete';
+type AdminMethod = 'GET' | 'POST' | 'PATCH' | 'DELETE';
+type AdminOperation = 'list' | 'get' | 'create' | 'update' | 'delete' | 'batch';
 
 interface AdminRequestOptions {
   targetId: string;
@@ -54,6 +54,9 @@ function translateUpstreamError(
   }
   if (upstreamCode === 'LIST_INDEX_UNAVAILABLE') {
     return errorResponse(503, '链接列表索引尚未就绪，请稍后重试', 'LIST_INDEX_UNAVAILABLE');
+  }
+  if (upstreamCode === 'LINK_VERSION_CONFLICT') {
+    return errorResponse(409, '链接已被其他操作更新，请刷新后重试', 'LINK_VERSION_CONFLICT');
   }
   if (operation === 'list' && status === 404) {
     return errorResponse(501, '当前环境尚未启用链接列表接口', 'LIST_NOT_SUPPORTED');
