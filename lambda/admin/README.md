@@ -7,6 +7,10 @@ The source is split by responsibility under `src/`. The default production
 package is a single `index.mjs` bundle with handler `index.handler` and uses the
 AWS SDK v3 included in the Node.js 24 Lambda runtime.
 
+`POST /links` defaults `randomSubdomain` to `true` when the field is omitted.
+Clients can explicitly send `false` to create a fixed-target link; in that mode
+`subdomainLength` is not required or stored.
+
 ## Commands
 
 Run these commands from the repository root:

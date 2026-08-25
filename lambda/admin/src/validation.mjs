@@ -88,6 +88,7 @@ export function parseTargetUrl(value) {
   }
 
   return {
+    targetUrl: target.toString(),
     targetBaseUrl: `${target.protocol}//${target.host}`,
     targetPath: target.pathname || "/"
   };
@@ -107,6 +108,18 @@ export function parseSubdomainLength(value) {
     );
   }
   return subdomainLength;
+}
+
+export function parseRandomSubdomain(value) {
+  if (value === undefined) return true;
+  if (typeof value !== "boolean") {
+    throw new HttpError(
+      400,
+      "INVALID_RANDOM_SUBDOMAIN",
+      "randomSubdomain must be a boolean"
+    );
+  }
+  return value;
 }
 
 export function getUpdateFields(body) {

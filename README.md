@@ -68,6 +68,19 @@ Example with multiple environments:
 
 **Deployment on Vercel or other platforms**: Set these environment variables in your platform's dashboard (e.g., Vercel Project Settings → Environment Variables). All sensitive credentials remain server-side.
 
+## Redirect Modes
+
+The create form supports two redirect modes:
+
+- **Random subdomain** is enabled by default. Each visit generates a new target
+  subdomain, and the random string length can be configured from 3 to 32.
+- **Fixed target URL** can be selected by turning off random subdomains. The
+  short link then redirects directly to the configured target URL.
+
+Deploy the Admin Lambda source in this repository before enabling fixed-target
+creation in the console. The public redirect Lambda must also honor records
+where `randomSubdomain` is `false` by redirecting to the stored `targetUrl`.
+
 ## Getting Started
 
 First, run the development server:

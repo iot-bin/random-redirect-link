@@ -48,6 +48,11 @@ Lambda Handler 继续使用：
 index.handler
 ```
 
+创建接口默认启用随机二级域名模式。`POST /links` 未提供
+`randomSubdomain` 时按 `true` 处理；显式传入 `false` 时创建固定目标地址短链，
+此时不需要提供 `subdomainLength`。前端与 Admin Lambda 应一起发布，并确认公共跳转
+Lambda 能将 `randomSubdomain: false` 的记录直接跳转到保存的 `targetUrl`。
+
 ## 2. 本地准备
 
 需要：
@@ -263,7 +268,8 @@ aws lambda add-permission `
 
 ## 9. 部署后冒烟测试
 
-以下测试会创建一个临时短链、停用它、批量启用它，然后删除。确认目标地址允许用于测试。
+以下测试会创建一个固定目标地址的临时短链、停用它、批量启用它，然后删除。
+确认目标地址允许用于测试。
 
 ```powershell
 $adminBaseUrl = "https://h2ocs5m4ra.execute-api.ap-southeast-1.amazonaws.com"
@@ -280,8 +286,7 @@ $created = Invoke-RestMethod `
   -Body (@{
     path = $testPath
     targetUrl = "https://example.com/"
-    randomSubdomain = $true
-    subdomainLength = 5
+    randomSubdomain = $false
   } | ConvertTo-Json -Compress)
 
 $disabled = Invoke-RestMethod `
@@ -316,6 +321,7 @@ Remove-Variable adminToken, secureToken, headers
 期望结果：
 
 - 创建返回 HTTP 201。
+- 创建结果的 `randomSubdomain` 为 `false`，且无需 `subdomainLength`。
 - 停用结果的 `enabled` 为 `false`。
 - 批量启用结果的 `failed` 为空。
 - 删除结果的 `deleted` 为 `true`。

@@ -78,10 +78,22 @@ export async function POST(request: Request) {
   const targetId = typeof values.targetId === 'string' ? values.targetId.trim() : '';
   const path = typeof values.path === 'string' ? normalizeLinkPath(values.path) : '';
   const targetUrl = typeof values.targetUrl === 'string' ? values.targetUrl.trim() : '';
-  const randomSubdomain = values.randomSubdomain === true;
-  const subdomainLength = typeof values.subdomainLength === 'number'
-    ? values.subdomainLength
-    : Number.NaN;
+  if (
+    Object.prototype.hasOwnProperty.call(values, 'randomSubdomain')
+    && typeof values.randomSubdomain !== 'boolean'
+  ) {
+    return errorResponse(
+      '随机二级域名模式必须是布尔值',
+      'INVALID_RANDOM_SUBDOMAIN',
+    );
+  }
+
+  const randomSubdomain = values.randomSubdomain !== false;
+  const subdomainLength = values.subdomainLength === undefined
+    ? 10
+    : typeof values.subdomainLength === 'number'
+      ? values.subdomainLength
+      : Number.NaN;
 
   const pathError = getLinkPathError(path);
   if (pathError) return errorResponse(pathError, 'INVALID_PATH');
@@ -89,16 +101,11 @@ export async function POST(request: Request) {
   const targetUrlError = getTargetUrlError(targetUrl);
   if (targetUrlError) return errorResponse(targetUrlError, 'INVALID_TARGET_URL');
 
-  if (!randomSubdomain) {
-    return errorResponse(
-      '当前后台暂不支持固定地址模式，请启用随机二级域名',
-      'FIXED_MODE_UNAVAILABLE',
-    );
-  }
-
-  const subdomainLengthError = getSubdomainLengthError(subdomainLength);
-  if (subdomainLengthError) {
-    return errorResponse(subdomainLengthError, 'INVALID_SUBDOMAIN_LENGTH');
+  if (randomSubdomain) {
+    const subdomainLengthError = getSubdomainLengthError(subdomainLength);
+    if (subdomainLengthError) {
+      return errorResponse(subdomainLengthError, 'INVALID_SUBDOMAIN_LENGTH');
+    }
   }
 
   return forwardAdminRequest({
@@ -110,7 +117,7 @@ export async function POST(request: Request) {
       path,
       targetUrl,
       randomSubdomain,
-      subdomainLength,
+      ...(randomSubdomain ? { subdomainLength } : {}),
     },
   });
 }

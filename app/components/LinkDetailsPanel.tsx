@@ -96,17 +96,20 @@ export function LinkDetailsPanel({
       return;
     }
 
+    const randomSubdomain = record.randomSubdomain !== false;
     const parsedLength = Number(subdomainLength);
-    const lengthError = getSubdomainLengthError(parsedLength);
-    if (lengthError) {
-      setFormError(translateValidationError(lengthError, t));
-      return;
+    if (randomSubdomain) {
+      const lengthError = getSubdomainLengthError(parsedLength);
+      if (lengthError) {
+        setFormError(translateValidationError(lengthError, t));
+        return;
+      }
     }
 
     const saved = await onUpdate(record, {
       targetUrl: normalizedTargetUrl,
       statusCode,
-      subdomainLength: parsedLength,
+      ...(randomSubdomain ? { subdomainLength: parsedLength } : {}),
       enabled,
       expectedUpdatedAt: record.updatedAt,
     });
@@ -152,19 +155,21 @@ export function LinkDetailsPanel({
                 <option value="301">{t('details.permanentRedirect')}</option>
               </select>
             </div>
-            <div className="form-field">
-              <label htmlFor="edit-subdomain-length">{t('details.subdomainLength')}</label>
-              <input
-                id="edit-subdomain-length"
-                type="number"
-                min="3"
-                max="32"
-                step="1"
-                value={subdomainLength}
-                onChange={(event) => setSubdomainLength(event.target.value)}
-                disabled={updating}
-              />
-            </div>
+            {record.randomSubdomain !== false ? (
+              <div className="form-field">
+                <label htmlFor="edit-subdomain-length">{t('details.subdomainLength')}</label>
+                <input
+                  id="edit-subdomain-length"
+                  type="number"
+                  min="3"
+                  max="32"
+                  step="1"
+                  value={subdomainLength}
+                  onChange={(event) => setSubdomainLength(event.target.value)}
+                  disabled={updating}
+                />
+              </div>
+            ) : null}
           </div>
 
           <label className="toggle-card edit-status-toggle">

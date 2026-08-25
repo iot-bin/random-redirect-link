@@ -41,6 +41,7 @@ export function CreateLinkPanel({
   const { t } = useLocale();
   const [path, setPath] = useState('');
   const [targetUrl, setTargetUrl] = useState('');
+  const [randomSubdomain, setRandomSubdomain] = useState(true);
   const [subdomainLength, setSubdomainLength] = useState(5);
   const [submitting, setSubmitting] = useState(false);
   const [result, setResult] = useState<LinkRecord | null>(null);
@@ -57,10 +58,9 @@ export function CreateLinkPanel({
     () => translateValidationError(getTargetUrlError(targetUrl.trim()), t),
     [t, targetUrl],
   );
-  const lengthError = translateValidationError(
-    getSubdomainLengthError(subdomainLength),
-    t,
-  );
+  const lengthError = randomSubdomain
+    ? translateValidationError(getSubdomainLengthError(subdomainLength), t)
+    : '';
 
   const previewShortUrl =
     target && normalizedPath
@@ -97,8 +97,8 @@ export function CreateLinkPanel({
           targetId: target?.id,
           path: normalizedPath,
           targetUrl: targetUrl.trim(),
-          randomSubdomain: true,
-          subdomainLength,
+          randomSubdomain,
+          ...(randomSubdomain ? { subdomainLength } : {}),
         }),
       });
       const payload: unknown = await response.json().catch(() => ({}));
@@ -205,30 +205,48 @@ export function CreateLinkPanel({
 
           <fieldset className="mode-fieldset">
             <legend>{t('create.mode')}</legend>
-            <div className="toggle-card mode-summary">
+            <label className="toggle-card mode-summary">
               <span>
                 <strong>{t('create.randomSubdomain')}</strong>
-                <small>{t('create.randomSubdomainHelp')}</small>
+                <small>
+                  {randomSubdomain
+                    ? t('create.randomSubdomainHelp')
+                    : t('create.fixedModeHelp')}
+                </small>
               </span>
-              <span className="mode-status">{t('create.modeEnabled')}</span>
-            </div>
+              <span className="mode-control">
+                <span className={randomSubdomain ? 'mode-status' : 'mode-status mode-status-off'}>
+                  {randomSubdomain ? t('create.modeEnabled') : t('create.modeDisabled')}
+                </span>
+                <input
+                  type="checkbox"
+                  checked={randomSubdomain}
+                  onChange={(event) => setRandomSubdomain(event.target.checked)}
+                  aria-label={t('create.randomSubdomain')}
+                />
+              </span>
+            </label>
 
-            <div className="inline-field">
-              <label htmlFor="subdomain-length">{t('create.subdomainLength')}</label>
-              <input
-                id="subdomain-length"
-                type="number"
-                min={3}
-                max={32}
-                step={1}
-                value={subdomainLength}
-                onChange={(event) => setSubdomainLength(Number(event.target.value))}
-              />
-              <span>{t('create.characters')}</span>
-            </div>
+            {randomSubdomain ? (
+              <>
+                <div className="inline-field">
+                  <label htmlFor="subdomain-length">{t('create.subdomainLength')}</label>
+                  <input
+                    id="subdomain-length"
+                    type="number"
+                    min={3}
+                    max={32}
+                    step={1}
+                    value={subdomainLength}
+                    onChange={(event) => setSubdomainLength(Number(event.target.value))}
+                  />
+                  <span>{t('create.characters')}</span>
+                </div>
 
-            {lengthError ? (
-              <p className="field-error">{lengthError}</p>
+                {lengthError ? (
+                  <p className="field-error">{lengthError}</p>
+                ) : null}
+              </>
             ) : null}
           </fieldset>
 
@@ -276,9 +294,11 @@ export function CreateLinkPanel({
               <div>
                 <dt>{t('create.mode')}</dt>
                 <dd>
-                  {t('create.randomModeValue', {
-                    length: result.subdomainLength ?? subdomainLength,
-                  })}
+                  {result.randomSubdomain === false
+                    ? t('create.fixedModeValue')
+                    : t('create.randomModeValue', {
+                      length: result.subdomainLength ?? subdomainLength,
+                    })}
                 </dd>
               </div>
               <div>

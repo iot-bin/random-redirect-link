@@ -15,6 +15,7 @@ import {
   parseExpectedUpdatedAt,
   parseLimit,
   parsePrefix,
+  parseRandomSubdomain,
   parseSubdomainLength,
   parseTargetUrl
 } from "../validation.mjs";
@@ -29,17 +30,17 @@ export async function createLink(event) {
   const pathError = getPathError(path);
   if (pathError) throw new HttpError(400, "INVALID_PATH", pathError);
 
-  if (body.randomSubdomain !== true) {
-    throw new HttpError(
-      400,
-      "FIXED_MODE_UNAVAILABLE",
-      "fixed target mode is not supported"
-    );
-  }
-
+  const randomSubdomain = parseRandomSubdomain(body.randomSubdomain);
   const target = parseTargetUrl(body.targetUrl);
-  const subdomainLength = parseSubdomainLength(body.subdomainLength ?? 10);
-  const item = createLinkItem({ path, target, subdomainLength });
+  const subdomainLength = randomSubdomain
+    ? parseSubdomainLength(body.subdomainLength ?? 10)
+    : undefined;
+  const item = createLinkItem({
+    path,
+    target,
+    randomSubdomain,
+    subdomainLength
+  });
 
   await createLinkRecord(item);
   return json(201, toPublicItem(item));
