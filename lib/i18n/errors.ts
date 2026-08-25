@@ -44,6 +44,7 @@ const apiMessages: Record<string, MessageKey> = {
   INVALID_JSON: 'api.invalidJson',
   INVALID_PATH: 'api.invalidPath',
   INVALID_TARGET_URL: 'api.invalidTargetUrl',
+  INVALID_RANDOM_SUBDOMAIN: 'api.invalidRandomSubdomain',
   FIXED_MODE_UNAVAILABLE: 'api.fixedModeUnavailable',
   INVALID_SUBDOMAIN_LENGTH: 'validation.subdomainLength',
   INVALID_ENABLED: 'api.invalidEnabled',

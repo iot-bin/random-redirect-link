@@ -4,11 +4,13 @@ import {
   getUpdateFields,
   parseBatchRequest,
   parseLimit,
+  parseRandomSubdomain,
   parseTargetUrl
 } from "../src/validation.mjs";
 
 test("splits a valid target URL into base URL and path", () => {
   assert.deepEqual(parseTargetUrl("https://example.com/download/app.apk"), {
+    targetUrl: "https://example.com/download/app.apk",
     targetBaseUrl: "https://example.com",
     targetPath: "/download/app.apk"
   });
@@ -23,6 +25,16 @@ test("rejects target URLs with query parameters", () => {
 
 test("preserves false when parsing an enabled update", () => {
   assert.deepEqual(getUpdateFields({ enabled: false }), { enabled: false });
+});
+
+test("defaults random subdomains to enabled and accepts an explicit opt-out", () => {
+  assert.equal(parseRandomSubdomain(undefined), true);
+  assert.equal(parseRandomSubdomain(true), true);
+  assert.equal(parseRandomSubdomain(false), false);
+  assert.throws(
+    () => parseRandomSubdomain("false"),
+    (error) => error?.code === "INVALID_RANDOM_SUBDOMAIN"
+  );
 });
 
 test("parses and deduplicates batch paths", () => {
