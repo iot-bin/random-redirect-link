@@ -1,5 +1,7 @@
 # random-redirect-link-admin Lambda
 
+[简体中文](README.zh-CN.md) | English
+
 This directory contains the version-controlled source for the
 `random-redirect-link-admin` Lambda function.
 
@@ -36,5 +38,8 @@ pnpm --dir lambda/admin package:self-contained
 
 This writes `lambda/admin/dist/random-redirect-link-admin-self-contained.zip`.
 
-See [the Chinese deployment guide](../../docs/lambda-admin-deployment.zh-CN.md)
-for AWS configuration, API Gateway integration, smoke testing, and rollback.
+See the deployment guide in
+[English](../../docs/lambda-admin-deployment.en.md) or
+[Simplified Chinese](../../docs/lambda-admin-deployment.zh-CN.md) for AWS
+configuration, least-privilege IAM, API Gateway integration, smoke testing,
+and rollback.

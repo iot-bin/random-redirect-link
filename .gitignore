@@ -20,10 +20,10 @@
 # production
 /build
 
-# lambda build output and local dependencies
-/lambda/admin/node_modules/
-/lambda/admin/dist/
-/lambda/admin/backups/
+# Lambda build output, local dependencies, and deployment backups
+/lambda/*/node_modules/
+/lambda/*/dist/
+/lambda/*/backups/
 
 # misc
 .DS_Store
