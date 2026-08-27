@@ -1,5 +1,7 @@
 # Admin Lambda 部署教程
 
+简体中文 | [English](lambda-admin-deployment.en.md)
+
 本文用于部署项目中的模块化 `random-redirect-link-admin` Lambda 源码，并将
 API Gateway 路由绑定到该函数。示例环境如下：
 
@@ -150,6 +152,36 @@ aws lambda get-function-configuration `
 - `LINKS_INDEX_NAME`
 
 不要使用会覆盖整个 `Environment.Variables` 对象的命令，除非已经完整备份现有值。
+
+### 最小权限 IAM
+
+执行角色需要 CloudWatch Logs 权限，通常通过 `AWSLambdaBasicExecutionRole`
+提供；此外只需以下 DynamoDB 数据面操作：
+
+```json
+{
+  "Version": "2012-10-17",
+  "Statement": [
+    {
+      "Effect": "Allow",
+      "Action": [
+        "dynamodb:GetItem",
+        "dynamodb:PutItem",
+        "dynamodb:Query",
+        "dynamodb:UpdateItem",
+        "dynamodb:DeleteItem"
+      ],
+      "Resource": [
+        "arn:aws:dynamodb:ap-southeast-1:ACCOUNT_ID:table/random-redirect-link",
+        "arn:aws:dynamodb:ap-southeast-1:ACCOUNT_ID:table/random-redirect-link/index/links-by-path"
+      ]
+    }
+  ]
+}
+```
+
+请替换 `ACCOUNT_ID`。不要授予创建或删除表的权限，也不要对所有 DynamoDB
+资源使用通配授权。
 
 ## 5. 部署前备份
 
