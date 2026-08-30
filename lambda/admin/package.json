@@ -13,8 +13,8 @@
     "package:self-contained": "powershell -NoProfile -ExecutionPolicy Bypass -File ./scripts/package.ps1 -IncludeSdk"
   },
   "dependencies": {
-    "@aws-sdk/client-dynamodb": "3.1116.0",
-    "@aws-sdk/lib-dynamodb": "3.1116.0"
+    "@aws-sdk/client-dynamodb": "3.1119.0",
+    "@aws-sdk/lib-dynamodb": "3.1119.0"
   },
   "devDependencies": {
     "esbuild": "0.28.2"
