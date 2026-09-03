@@ -4,54 +4,87 @@ import { useSyncExternalStore } from 'react';
 import { useLocale } from '@/lib/i18n/LocaleProvider';
 
 type Theme = 'light' | 'dark';
+export type ThemePreference = Theme | 'system';
 
 interface ThemeContextValue {
   theme: Theme;
+  preference: ThemePreference;
+  setTheme: (preference: ThemePreference) => void;
   toggle: () => void;
 }
 
 const THEME_CHANGE_EVENT = 'short-link-console-theme-change';
+let volatileThemePreference: ThemePreference | null = null;
 
-function getSavedTheme(): Theme {
+function getSavedPreference(): ThemePreference {
   if (typeof window === 'undefined') return 'light';
+  if (volatileThemePreference !== null) return volatileThemePreference;
 
   try {
     const saved = localStorage.getItem('theme');
-    return saved === 'dark' ? 'dark' : 'light';
+    return saved === 'dark' || saved === 'system' ? saved : 'light';
   } catch {
-    return document.documentElement.dataset.theme === 'dark' ? 'dark' : 'light';
+    return 'light';
   }
 }
 
+function getResolvedTheme(): Theme {
+  const preference = getSavedPreference();
+  if (preference === 'system') {
+    return window.matchMedia('(prefers-color-scheme: dark)').matches ? 'dark' : 'light';
+  }
+  return preference;
+}
+
+function getThemeSnapshot(): `${ThemePreference}:${Theme}` {
+  return `${getSavedPreference()}:${getResolvedTheme()}`;
+}
+
 function subscribeToTheme(onStoreChange: () => void) {
-  window.addEventListener('storage', onStoreChange);
-  window.addEventListener(THEME_CHANGE_EVENT, onStoreChange);
+  const mediaQuery = window.matchMedia('(prefers-color-scheme: dark)');
+  function handleChange() {
+    document.documentElement.dataset.theme = getResolvedTheme();
+    onStoreChange();
+  }
+  window.addEventListener('storage', handleChange);
+  window.addEventListener(THEME_CHANGE_EVENT, handleChange);
+  mediaQuery.addEventListener('change', handleChange);
 
   return () => {
-    window.removeEventListener('storage', onStoreChange);
-    window.removeEventListener(THEME_CHANGE_EVENT, onStoreChange);
+    window.removeEventListener('storage', handleChange);
+    window.removeEventListener(THEME_CHANGE_EVENT, handleChange);
+    mediaQuery.removeEventListener('change', handleChange);
   };
 }
 
 export function useTheme(): ThemeContextValue {
-  const theme = useSyncExternalStore(
+  const snapshot = useSyncExternalStore(
     subscribeToTheme,
-    getSavedTheme,
-    (): Theme => 'light',
+    getThemeSnapshot,
+    (): `${ThemePreference}:${Theme}` => 'light:light',
   );
+  const [preference, theme] = snapshot.split(':') as [ThemePreference, Theme];
 
-  function toggle() {
-    const next: Theme = theme === 'light' ? 'dark' : 'light';
-    document.documentElement.setAttribute('data-theme', next);
+  function setTheme(nextPreference: ThemePreference) {
+    const nextTheme = nextPreference === 'system'
+      ? (window.matchMedia('(prefers-color-scheme: dark)').matches ? 'dark' : 'light')
+      : nextPreference;
+    document.documentElement.setAttribute('data-theme', nextTheme);
     try {
-      localStorage.setItem('theme', next);
+      localStorage.setItem('theme', nextPreference);
+      volatileThemePreference = null;
     } catch {
       // The visual theme still works when browser storage is unavailable.
+      volatileThemePreference = nextPreference;
     }
     window.dispatchEvent(new Event(THEME_CHANGE_EVENT));
   }
 
-  return { theme, toggle };
+  function toggle() {
+    setTheme(theme === 'light' ? 'dark' : 'light');
+  }
+
+  return { theme, preference, setTheme, toggle };
 }
 
 export function ThemeToggle({ extraClass }: { extraClass?: string }) {
