@@ -208,53 +208,80 @@ select:focus-visible {
   flex: 1;
 }
 
-.sidebar-environment {
+.sidebar-environment-summary {
+  width: 100%;
+  min-width: 0;
   display: grid;
-  gap: 8px;
-  padding: 12px;
-  background: var(--surface);
+  grid-template-columns: 30px minmax(0, 1fr) 16px;
+  align-items: center;
+  gap: 9px;
+  padding: 10px;
   border: 1px solid var(--border-subtle);
   border-radius: 10px;
+  background: var(--surface);
+  color: var(--text-secondary);
+  cursor: pointer;
+  text-align: left;
   box-shadow: var(--shadow-sm);
+  transition: background 140ms ease, border-color 140ms ease, color 140ms ease;
 }
 
-.sidebar-environment > label {
-  color: var(--text-muted);
-  font-size: 11px;
-  font-weight: 600;
-  letter-spacing: 0.05em;
-}
-
-.sidebar-environment select {
-  width: 100%;
-  min-height: 38px;
-  padding: 0 30px 0 10px;
-  border: 1px solid var(--border);
-  border-radius: 7px;
-  background: var(--background);
+.sidebar-environment-summary:hover {
+  border-color: var(--border);
+  background: var(--surface-hover);
   color: var(--text-primary);
-  font-size: 12px;
 }
 
-.environment-domain {
+.sidebar-environment-summary > svg {
+  width: 15px;
+  height: 15px;
+}
+
+.sidebar-environment-icon {
+  width: 30px;
+  height: 30px;
   display: flex;
   align-items: center;
-  gap: 7px;
+  justify-content: center;
+  border-radius: 8px;
+  background: var(--surface-raised);
+}
+
+.sidebar-environment-icon svg {
+  width: 15px;
+  height: 15px;
+}
+
+.sidebar-environment-copy {
+  display: grid;
+  gap: 2px;
   min-width: 0;
+}
+
+.sidebar-environment-copy small {
   color: var(--text-muted);
-  font-size: 11px;
+  font-size: 9px;
+  font-weight: 650;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
 }
 
-.environment-domain svg {
-  width: 14px;
-  height: 14px;
-  flex: 0 0 auto;
-}
-
-.environment-domain span {
+.sidebar-environment-copy strong,
+.sidebar-environment-copy span {
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
+}
+
+.sidebar-environment-copy strong {
+  color: var(--text-primary);
+  font-size: 11px;
+  font-weight: 650;
+}
+
+.sidebar-environment-copy span {
+  color: var(--text-muted);
+  font-size: 9px;
 }
 
 .language-switcher {
@@ -266,27 +293,146 @@ select:focus-visible {
   letter-spacing: 0.05em;
 }
 
-.language-switcher select {
+.language-switcher.is-compact {
+  display: inline-flex;
+}
+
+.language-switcher.is-compact .dropdown-select {
+  min-width: 128px;
+}
+
+.dropdown-select {
+  position: relative;
   width: 100%;
-  min-height: 38px;
-  padding: 0 30px 0 10px;
-  border: 1px solid var(--border);
-  border-radius: 7px;
-  background: var(--surface);
+  min-width: 0;
   color: var(--text-primary);
   font-size: 12px;
   font-weight: 500;
   letter-spacing: normal;
 }
 
-.language-switcher.is-compact {
-  display: inline-flex;
+.dropdown-trigger {
+  width: 100%;
+  min-height: 42px;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+  padding: 0 11px 0 12px;
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  background: var(--surface);
+  color: var(--text-primary);
+  cursor: pointer;
+  text-align: left;
+  transition: background 140ms ease, border-color 140ms ease, box-shadow 140ms ease;
 }
 
-.language-switcher.is-compact select {
-  width: auto;
-  min-width: 128px;
-  height: 42px;
+.dropdown-trigger:hover:not(:disabled),
+.dropdown-trigger[aria-expanded="true"] {
+  border-color: var(--text-muted);
+  background: var(--surface-hover);
+}
+
+.dropdown-trigger[aria-expanded="true"] {
+  box-shadow: 0 0 0 3px rgb(59 130 246 / 0.12);
+}
+
+.dropdown-trigger:disabled {
+  cursor: not-allowed;
+  opacity: 0.55;
+}
+
+.dropdown-trigger > span {
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.dropdown-trigger > svg {
+  width: 15px;
+  height: 15px;
+  flex: 0 0 auto;
+  color: var(--text-muted);
+  transition: transform 140ms ease;
+}
+
+.dropdown-trigger > svg.is-open {
+  transform: rotate(180deg);
+}
+
+.dropdown-menu {
+  position: absolute;
+  top: calc(100% + 6px);
+  right: 0;
+  z-index: 70;
+  width: max(100%, 220px);
+  max-height: 280px;
+  display: grid;
+  gap: 3px;
+  padding: 5px;
+  overflow-y: auto;
+  border: 1px solid var(--border);
+  border-radius: 10px;
+  background: var(--surface);
+  box-shadow: var(--shadow-lg);
+}
+
+.dropdown-option {
+  width: 100%;
+  min-width: 0;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  padding: 9px 10px;
+  border: 0;
+  border-radius: 7px;
+  background: transparent;
+  color: var(--text-secondary);
+  cursor: pointer;
+  text-align: left;
+}
+
+.dropdown-option:hover,
+.dropdown-option:focus-visible,
+.dropdown-option.is-selected {
+  background: var(--surface-raised);
+  color: var(--text-primary);
+}
+
+.dropdown-option:focus-visible {
+  outline-offset: -2px;
+}
+
+.dropdown-option > span {
+  min-width: 0;
+  display: grid;
+  gap: 2px;
+}
+
+.dropdown-option strong {
+  overflow: hidden;
+  font-size: 12px;
+  font-weight: 600;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.dropdown-option small {
+  overflow: hidden;
+  color: var(--text-muted);
+  font-size: 10px;
+  font-weight: 400;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.dropdown-option > svg {
+  width: 15px;
+  height: 15px;
+  flex: 0 0 auto;
 }
 
 .sidebar-footer {
@@ -466,6 +612,53 @@ select:focus-visible {
   color: var(--text-secondary);
   font-size: 12px;
   line-height: 1.6;
+}
+
+.settings-panel {
+  width: min(100%, 920px);
+  overflow: visible;
+}
+
+.settings-heading {
+  margin: 0;
+  padding: 26px;
+  border-bottom: 1px solid var(--border-subtle);
+}
+
+.settings-list {
+  display: grid;
+}
+
+.settings-row {
+  min-width: 0;
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) minmax(220px, 300px);
+  align-items: center;
+  gap: 28px;
+  padding: 22px 26px;
+  border-bottom: 1px solid var(--border-subtle);
+}
+
+.settings-row:last-child {
+  border-bottom: 0;
+}
+
+.settings-row > div:first-child {
+  min-width: 0;
+}
+
+.settings-row label {
+  display: block;
+  color: var(--text-primary);
+  font-size: 13px;
+  font-weight: 650;
+}
+
+.settings-row p {
+  margin: 6px 0 0;
+  color: var(--text-secondary);
+  font-size: 11px;
+  line-height: 1.55;
 }
 
 .link-form {
@@ -1558,6 +1751,23 @@ select:focus-visible {
 
   .page-header h1 {
     font-size: 24px;
+  }
+
+  .settings-heading,
+  .settings-row {
+    padding: 18px;
+  }
+
+  .settings-row {
+    grid-template-columns: 1fr;
+    align-items: stretch;
+    gap: 14px;
+  }
+
+  .settings-row .dropdown-menu {
+    right: auto;
+    left: 0;
+    width: 100%;
   }
 
   .create-panel,

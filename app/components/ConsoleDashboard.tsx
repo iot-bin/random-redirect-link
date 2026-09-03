@@ -5,19 +5,22 @@ import { useEffect, useMemo, useState } from 'react';
 import { useRouter } from 'next/navigation';
 import { CreateLinkPanel } from '@/app/components/CreateLinkPanel';
 import {
+  ChevronRightIcon,
   CreateIcon,
   LinkIcon,
   LogoutIcon,
   MenuIcon,
   SearchIcon,
+  SettingsIcon,
 } from '@/app/components/Icons';
 import { LinkManagerPanel } from '@/app/components/LinkManagerPanel';
-import { LanguageSwitcher } from '@/app/components/LanguageSwitcher';
+import { SettingsPanel } from '@/app/components/SettingsPanel';
 import { ThemeToggle } from '@/app/components/ThemeProvider';
+import { useConsolePreferences } from '@/app/components/useConsolePreferences';
 import { useLocale } from '@/lib/i18n/LocaleProvider';
 import type { PublicApiTarget } from '@/lib/link-types';
 
-type ConsoleSection = 'create' | 'manage';
+type ConsoleSection = 'create' | 'manage' | 'settings';
 
 interface ConsoleDashboardProps {
   targets: PublicApiTarget[];
@@ -36,9 +39,14 @@ export function ConsoleDashboard({
       : targets[0]?.id ?? '';
 
   const [section, setSection] = useState<ConsoleSection>('create');
-  const [selectedTargetId, setSelectedTargetId] = useState(initialTargetId);
   const [managerInitialPath, setManagerInitialPath] = useState('');
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
+  const targetIds = useMemo(() => targets.map((target) => target.id), [targets]);
+  const { preferences, updatePreferences } = useConsolePreferences(
+    targetIds,
+    initialTargetId,
+  );
+  const { targetId: selectedTargetId, pageSize } = preferences;
 
   const selectedTarget = useMemo(
     () => targets.find((target) => target.id === selectedTargetId) ?? null,
@@ -76,21 +84,35 @@ export function ConsoleDashboard({
     setMobileMenuOpen(false);
   }
 
+  function changeTarget(targetId: string) {
+    updatePreferences({ ...preferences, targetId });
+    setManagerInitialPath('');
+  }
+
+  function changePageSize(nextPageSize: typeof pageSize) {
+    updatePreferences({ ...preferences, pageSize: nextPageSize });
+  }
+
   async function logout() {
     await fetch('/api/auth/logout', { method: 'POST' });
     router.push('/login');
     router.refresh();
   }
 
-  const copy = section === 'create'
-    ? {
-        title: t('dashboard.create'),
-        description: t('dashboard.createDescription'),
-      }
-    : {
-        title: t('dashboard.manage'),
-        description: t('dashboard.manageDescription'),
-      };
+  const copy = {
+    create: {
+      title: t('dashboard.create'),
+      description: t('dashboard.createDescription'),
+    },
+    manage: {
+      title: t('dashboard.manage'),
+      description: t('dashboard.manageDescription'),
+    },
+    settings: {
+      title: t('dashboard.settings'),
+      description: t('dashboard.settingsDescription'),
+    },
+  }[section];
 
   return (
     <div className="console-shell">
@@ -129,36 +151,33 @@ export function ConsoleDashboard({
             <SearchIcon />
             <span>{t('dashboard.manage')}</span>
           </button>
+          <button
+            className={section === 'settings' ? 'nav-item is-active' : 'nav-item'}
+            type="button"
+            aria-current={section === 'settings' ? 'page' : undefined}
+            onClick={() => navigate('settings')}
+          >
+            <SettingsIcon />
+            <span>{t('dashboard.settings')}</span>
+          </button>
         </nav>
 
         <div className="sidebar-spacer" />
 
-        <div className="sidebar-environment">
-          <label htmlFor="environment-select">{t('dashboard.environment')}</label>
-          <select
-            id="environment-select"
-            value={selectedTargetId}
-            onChange={(event) => {
-              setSelectedTargetId(event.target.value);
-              setManagerInitialPath('');
-            }}
-            disabled={targets.length === 0}
-          >
-            {targets.length > 0 ? (
-              targets.map((target) => (
-                <option key={target.id} value={target.id}>{target.name}</option>
-              ))
-            ) : (
-              <option value="">{t('dashboard.environmentMissing')}</option>
-            )}
-          </select>
-          <div className="environment-domain">
-            <LinkIcon />
+        <button
+          className="sidebar-environment-summary"
+          type="button"
+          onClick={() => navigate('settings')}
+          aria-label={t('dashboard.openEnvironmentSettings')}
+        >
+          <span className="sidebar-environment-icon"><LinkIcon /></span>
+          <span className="sidebar-environment-copy">
+            <small>{t('dashboard.environment')}</small>
+            <strong>{selectedTarget?.name || t('dashboard.environmentMissing')}</strong>
             <span>{selectedTarget?.redirectBaseUrl || t('dashboard.configureTargets')}</span>
-          </div>
-        </div>
-
-        <LanguageSwitcher />
+          </span>
+          <ChevronRightIcon />
+        </button>
 
         <div className="sidebar-footer">
           <ThemeToggle />
@@ -218,11 +237,20 @@ export function ConsoleDashboard({
             target={selectedTarget}
             onManage={manageCreatedLink}
           />
-        ) : (
+        ) : section === 'manage' ? (
           <LinkManagerPanel
-            key={`${selectedTargetId}:${managerInitialPath}`}
+            key={`${selectedTargetId}:${managerInitialPath}:${pageSize}`}
             target={selectedTarget}
             initialPath={managerInitialPath}
+            pageSize={pageSize}
+          />
+        ) : (
+          <SettingsPanel
+            targets={targets}
+            selectedTargetId={selectedTargetId}
+            pageSize={pageSize}
+            onTargetChange={changeTarget}
+            onPageSizeChange={changePageSize}
           />
         )}
       </main>

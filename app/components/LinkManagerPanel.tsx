@@ -32,13 +32,13 @@ import {
   translateValidationError,
 } from '@/lib/i18n/errors';
 import { useLocale } from '@/lib/i18n/LocaleProvider';
+import type { PageSize } from '@/lib/console-preferences';
 
 interface LinkManagerPanelProps {
   target: PublicApiTarget | null;
+  pageSize: PageSize;
   initialPath?: string;
 }
-
-const PAGE_SIZE = 25;
 
 function isLinkRecord(value: unknown): value is LinkRecord {
   return (
@@ -129,6 +129,7 @@ function parseLinkBatchResponse(value: unknown): LinkBatchResponse | null {
 
 export function LinkManagerPanel({
   target,
+  pageSize,
   initialPath = '',
 }: LinkManagerPanelProps) {
   const { t } = useLocale();
@@ -173,7 +174,7 @@ export function LinkManagerPanel({
 
       const query = new URLSearchParams({
         targetId: target.id,
-        limit: String(PAGE_SIZE),
+        limit: String(pageSize),
       });
       if (cursor) query.set('cursor', cursor);
       if (prefix) query.set('prefix', prefix);
@@ -210,7 +211,7 @@ export function LinkManagerPanel({
         setListLoading(false);
       }
     },
-    [target],
+    [pageSize, target],
   );
 
   const lookupExact = useCallback(

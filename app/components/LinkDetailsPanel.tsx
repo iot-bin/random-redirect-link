@@ -1,6 +1,7 @@
 'use client';
 
 import { useMemo, useState } from 'react';
+import { DropdownSelect } from '@/app/components/DropdownSelect';
 import {
   CopyIcon,
   EditIcon,
@@ -143,17 +144,19 @@ export function LinkDetailsPanel({
           <div className="edit-link-grid">
             <div className="form-field">
               <label htmlFor="edit-status-code">{t('details.statusCode')}</label>
-              <select
+              <DropdownSelect
                 id="edit-status-code"
-                value={statusCode}
-                onChange={(event) => setStatusCode(
-                  event.target.value === '301' ? 301 : 302,
+                ariaLabel={t('details.statusCode')}
+                value={String(statusCode)}
+                options={[
+                  { value: '302', label: t('details.temporaryRedirect') },
+                  { value: '301', label: t('details.permanentRedirect') },
+                ]}
+                onChange={(nextStatusCode) => setStatusCode(
+                  nextStatusCode === '301' ? 301 : 302,
                 )}
                 disabled={updating}
-              >
-                <option value="302">{t('details.temporaryRedirect')}</option>
-                <option value="301">{t('details.permanentRedirect')}</option>
-              </select>
+              />
             </div>
             {record.randomSubdomain !== false ? (
               <div className="form-field">

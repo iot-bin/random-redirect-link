@@ -1,6 +1,7 @@
 'use client';
 
 import { useRouter } from 'next/navigation';
+import { DropdownSelect } from '@/app/components/DropdownSelect';
 import {
   SUPPORTED_LOCALES,
   type Locale,
@@ -12,22 +13,20 @@ export function LanguageSwitcher({ compact = false }: { compact?: boolean }) {
   const { locale, setLocale, t } = useLocale();
 
   return (
-    <label className={compact ? 'language-switcher is-compact' : 'language-switcher'}>
-      <span>{compact ? <span className="sr-only">{t('language.label')}</span> : t('language.label')}</span>
-      <select
-        aria-label={t('language.label')}
+    <div className={compact ? 'language-switcher is-compact' : 'language-switcher'}>
+      {compact ? null : <span>{t('language.label')}</span>}
+      <DropdownSelect<Locale>
+        ariaLabel={t('language.label')}
         value={locale}
-        onChange={(event) => {
-          setLocale(event.target.value as Locale);
+        options={SUPPORTED_LOCALES.map((option) => ({
+          value: option,
+          label: t(`language.${option}`),
+        }))}
+        onChange={(nextLocale) => {
+          setLocale(nextLocale);
           router.refresh();
         }}
-      >
-        {SUPPORTED_LOCALES.map((option) => (
-          <option key={option} value={option}>
-            {t(`language.${option}`)}
-          </option>
-        ))}
-      </select>
-    </label>
+      />
+    </div>
   );
 }

@@ -18,7 +18,7 @@ const geistMono = Geist_Mono({
 });
 
 const themeInitializationScript =
-  'try{var theme=localStorage.getItem("theme");document.documentElement.dataset.theme=theme==="dark"?"dark":"light"}catch{}';
+  'try{var theme=localStorage.getItem("theme");var dark=theme==="dark"||(theme==="system"&&matchMedia("(prefers-color-scheme: dark)").matches);document.documentElement.dataset.theme=dark?"dark":"light"}catch{}';
 
 export async function generateMetadata(): Promise<Metadata> {
   const cookieStore = await cookies();
