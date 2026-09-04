@@ -1,0 +1,79 @@
+name: CI
+
+on:
+  pull_request:
+  push:
+    branches:
+      - master
+
+permissions:
+  contents: read
+
+concurrency:
+  group: ci-${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  frontend:
+    name: Frontend
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    env:
+      CONSOLE_PASSWORD: ci-console-password
+      API_TARGETS: >-
+        [{"id":"ci","name":"CI","apiBaseUrl":"https://admin.example.com","adminToken":"ci-admin-token","redirectBaseUrl":"https://go.example.com"}]
+      DEFAULT_TARGET_ID: ci
+    steps:
+      - name: Check out repository
+        uses: actions/checkout@v4
+
+      - name: Set up Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: 24
+          cache: npm
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Lint
+        run: npm run lint
+
+      - name: Type-check
+        run: npx tsc --noEmit
+
+      - name: Build
+        run: npm run build
+
+  lambda:
+    name: Lambda (${{ matrix.component }})
+    runs-on: windows-latest
+    timeout-minutes: 15
+    strategy:
+      fail-fast: false
+      matrix:
+        component:
+          - admin
+          - api
+    steps:
+      - name: Check out repository
+        uses: actions/checkout@v4
+
+      - name: Set up Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: 24
+
+      - name: Enable pnpm
+        shell: pwsh
+        run: |
+          corepack enable
+          corepack prepare pnpm@11.19.0 --activate
+
+      - name: Install dependencies
+        shell: pwsh
+        run: pnpm --dir lambda/${{ matrix.component }} install --frozen-lockfile
+
+      - name: Test and package
+        shell: pwsh
+        run: pnpm --dir lambda/${{ matrix.component }} package
