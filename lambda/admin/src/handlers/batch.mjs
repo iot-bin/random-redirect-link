@@ -1,5 +1,4 @@
 import { BATCH_CONCURRENCY } from "../config.mjs";
-import { isThrottlingError } from "../errors.mjs";
 import { json } from "../http.mjs";
 import { toPublicItem } from "../link-record.mjs";
 import {
@@ -8,14 +7,21 @@ import {
 } from "../repository.mjs";
 import { parseBatchRequest } from "../validation.mjs";
 
-async function mutateBatchItem(action, path) {
+async function mutateBatchItem(
+  action,
+  path,
+  {
+    deleteLink = deleteLinkRecordIfExists,
+    updateLinkEnabled = updateLinkEnabledIfExists
+  } = {}
+) {
   try {
     if (action === "delete") {
-      await deleteLinkRecordIfExists(path);
+      await deleteLink(path);
       return { ok: true, value: { path } };
     }
 
-    const item = await updateLinkEnabledIfExists(path, action === "enable");
+    const item = await updateLinkEnabled(path, action === "enable");
     return {
       ok: true,
       value: { path, item: toPublicItem(item) }
@@ -27,25 +33,13 @@ async function mutateBatchItem(action, path) {
         value: { path, code: "LINK_NOT_FOUND", error: "not found" }
       };
     }
-    if (isThrottlingError(error)) {
-      return {
-        ok: false,
-        value: {
-          path,
-          code: "DYNAMODB_THROTTLED",
-          error: "service temporarily unavailable"
-        }
-      };
-    }
-
-    return {
-      ok: false,
-      value: { path, code: "INTERNAL_ERROR", error: "internal error" }
-    };
+    // Systemic failures must reach the top-level handler so callers receive
+    // a retryable 5xx response instead of a misleading HTTP 200 batch result.
+    throw error;
   }
 }
 
-export async function batchMutateLinks(event) {
+export async function batchMutateLinks(event, dependencies) {
   const { action, paths } = parseBatchRequest(event);
   const succeeded = [];
   const failed = [];
@@ -53,7 +47,7 @@ export async function batchMutateLinks(event) {
   for (let offset = 0; offset < paths.length; offset += BATCH_CONCURRENCY) {
     const chunk = paths.slice(offset, offset + BATCH_CONCURRENCY);
     const results = await Promise.all(
-      chunk.map((path) => mutateBatchItem(action, path))
+      chunk.map((path) => mutateBatchItem(action, path, dependencies))
     );
 
     for (const result of results) {
