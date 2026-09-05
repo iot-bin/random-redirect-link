@@ -143,3 +143,13 @@ AWS SDK v3。需要固定并包含 SDK 版本时，在对应 Lambda 目录执行
 - 公共 Lambda 的角色只授予短链表的 `dynamodb:GetItem`；Admin Lambda 只授予表和
   列表索引所需操作。
 - 部署备份应放在 Git 之外，并在每次更新代码前后核对函数状态。
+
+## 参与贡献与安全报告
+
+- 本地开发、验证命令和 Pull Request 要求请参阅
+  [CONTRIBUTING.md](CONTRIBUTING.md)。
+- 安全漏洞请按照 [SECURITY.md](SECURITY.md) 进行私下报告，不要在公开 Issue 中披露。
+
+## 许可证
+
+本项目采用 [Apache License 2.0](LICENSE)。

@@ -144,3 +144,13 @@ smoke tests, logs, and rollback. Building a package does not deploy it.
   Admin Lambda role only to the table and its listing index operations.
 - Keep deployment backups outside Git and verify the function state before and
   after each code update.
+
+## Contributing and Security
+
+- See [CONTRIBUTING.md](CONTRIBUTING.md) for local setup, validation, and pull
+  request expectations.
+- Report vulnerabilities privately according to [SECURITY.md](SECURITY.md).
+
+## License
+
+Licensed under the [Apache License 2.0](LICENSE).
