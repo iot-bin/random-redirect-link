@@ -1,22 +1,60 @@
 'use client';
 
+import { useSyncExternalStore } from 'react';
+import {
+  DEFAULT_LOCALE,
+  LOCALE_COOKIE,
+  normalizeLocale,
+  type Locale,
+} from '@/lib/i18n/config';
+import { messages } from '@/lib/i18n/messages';
+
+function subscribeToLocale() {
+  return () => {};
+}
+
+function getServerLocale(): Locale {
+  return DEFAULT_LOCALE;
+}
+
+function getBrowserLocale(): Locale {
+  const prefix = `${LOCALE_COOKIE}=`;
+  const cookie = document.cookie
+    .split(';')
+    .map((entry) => entry.trim())
+    .find((entry) => entry.startsWith(prefix));
+
+  if (!cookie) return DEFAULT_LOCALE;
+
+  try {
+    return normalizeLocale(decodeURIComponent(cookie.slice(prefix.length)));
+  } catch {
+    return DEFAULT_LOCALE;
+  }
+}
+
 export default function GlobalError({
   reset,
 }: {
   error: Error & { digest?: string };
   reset: () => void;
 }) {
+  const locale = useSyncExternalStore(
+    subscribeToLocale,
+    getBrowserLocale,
+    getServerLocale,
+  );
+  const copy = messages[locale];
+
   return (
-    <html lang="zh-CN">
+    <html lang={locale}>
       <body style={styles.body}>
         <main style={styles.card} role="alert">
           <p style={styles.code}>500</p>
-          <h1 style={styles.title}>应用暂时无法显示</h1>
-          <p style={styles.description}>
-            发生了意外错误，请重试。 / Something went wrong. Please try again.
-          </p>
+          <h1 style={styles.title}>{copy['error.title']}</h1>
+          <p style={styles.description}>{copy['error.description']}</p>
           <button style={styles.button} type="button" onClick={reset}>
-            重试 / Try again
+            {copy['error.retry']}
           </button>
         </main>
       </body>
