@@ -39,6 +39,8 @@ export const en = {
   'dashboard.configureTargets': 'Configure API_TARGETS',
   'dashboard.openEnvironmentSettings': 'Open environment settings',
   'dashboard.logout': 'Sign out',
+  'dashboard.loggingOut': 'Signing out...',
+  'dashboard.logoutFailed': 'Sign-out failed. Check your connection and try again.',
   'dashboard.eyebrow': 'Short Link Management Console',
   'dashboard.createDescription': 'Create a random-subdomain or fixed-target redirect and get its short URL and QR code instantly.',
   'dashboard.manageDescription': 'Browse and filter records, inspect details, or delete existing links.',

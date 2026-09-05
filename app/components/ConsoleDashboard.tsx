@@ -41,6 +41,8 @@ export function ConsoleDashboard({
   const [section, setSection] = useState<ConsoleSection>('create');
   const [managerInitialPath, setManagerInitialPath] = useState('');
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
+  const [logoutPending, setLogoutPending] = useState(false);
+  const [logoutError, setLogoutError] = useState('');
   const targetIds = useMemo(() => targets.map((target) => target.id), [targets]);
   const { preferences, updatePreferences } = useConsolePreferences(
     targetIds,
@@ -94,9 +96,25 @@ export function ConsoleDashboard({
   }
 
   async function logout() {
-    await fetch('/api/auth/logout', { method: 'POST' });
-    router.push('/login');
-    router.refresh();
+    if (logoutPending) return;
+
+    setLogoutPending(true);
+    setLogoutError('');
+
+    try {
+      const response = await fetch('/api/auth/logout', { method: 'POST' });
+      if (!response.ok) {
+        setLogoutError(t('dashboard.logoutFailed'));
+        return;
+      }
+
+      router.replace('/login');
+      router.refresh();
+    } catch {
+      setLogoutError(t('dashboard.logoutFailed'));
+    } finally {
+      setLogoutPending(false);
+    }
   }
 
   const copy = {
@@ -181,9 +199,15 @@ export function ConsoleDashboard({
 
         <div className="sidebar-footer">
           <ThemeToggle />
-          <button className="sidebar-action" type="button" onClick={logout}>
+          <button
+            className="sidebar-action"
+            type="button"
+            onClick={logout}
+            disabled={logoutPending}
+            aria-busy={logoutPending}
+          >
             <LogoutIcon />
-            <span>{t('dashboard.logout')}</span>
+            <span>{logoutPending ? t('dashboard.loggingOut') : t('dashboard.logout')}</span>
           </button>
         </div>
       </aside>
@@ -224,6 +248,12 @@ export function ConsoleDashboard({
             </a>
           ) : null}
         </div>
+
+        {logoutError ? (
+          <div className="alert alert-error configuration-alert" role="alert">
+            {logoutError}
+          </div>
+        ) : null}
 
         {targets.length === 0 ? (
           <div className="alert alert-error configuration-alert" role="alert">

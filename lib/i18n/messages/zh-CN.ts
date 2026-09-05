@@ -37,6 +37,8 @@ export const zhCN = {
   'dashboard.configureTargets': '请配置 API_TARGETS',
   'dashboard.openEnvironmentSettings': '打开运行环境设置',
   'dashboard.logout': '退出登录',
+  'dashboard.loggingOut': '正在退出...',
+  'dashboard.logoutFailed': '退出登录失败，请检查网络后重试',
   'dashboard.eyebrow': '短链管理控制台',
   'dashboard.createDescription': '创建随机子域或固定地址跳转，并即时获取短链和二维码。',
   'dashboard.manageDescription': '浏览和筛选后台记录，查看详情或删除已有短链。',

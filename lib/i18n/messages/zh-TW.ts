@@ -39,6 +39,8 @@ export const zhTW = {
   'dashboard.configureTargets': '請設定 API_TARGETS',
   'dashboard.openEnvironmentSettings': '開啟執行環境設定',
   'dashboard.logout': '登出',
+  'dashboard.loggingOut': '正在登出...',
+  'dashboard.logoutFailed': '登出失敗，請檢查網路後再試',
   'dashboard.eyebrow': '短連結管理控制台',
   'dashboard.createDescription': '建立隨機子網域或固定網址重新導向，並立即取得短連結與 QR Code。',
   'dashboard.manageDescription': '瀏覽及篩選後台記錄、檢視詳細資料或刪除現有短連結。',
