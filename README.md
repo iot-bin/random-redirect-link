@@ -123,6 +123,8 @@ in the Node.js 24 Lambda runtime. To pin and include the SDK instead, run
 
 ## Deployment Guides
 
+- Complete AWS SAM infrastructure: [English](docs/infrastructure.en.md) |
+  [简体中文](docs/infrastructure.zh-CN.md)
 - Admin Lambda: [English](docs/lambda-admin-deployment.en.md) |
   [简体中文](docs/lambda-admin-deployment.zh-CN.md)
 - Public API Lambda: [English](docs/lambda-api-deployment.en.md) |

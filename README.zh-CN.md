@@ -123,6 +123,8 @@ AWS SDK v3。需要固定并包含 SDK 版本时，在对应 Lambda 目录执行
 
 ## 部署教程
 
+- 完整 AWS SAM 基础设施：[English](docs/infrastructure.en.md) |
+  [简体中文](docs/infrastructure.zh-CN.md)
 - Admin Lambda：[English](docs/lambda-admin-deployment.en.md) |
   [简体中文](docs/lambda-admin-deployment.zh-CN.md)
 - 公共跳转 Lambda：[English](docs/lambda-api-deployment.en.md) |
