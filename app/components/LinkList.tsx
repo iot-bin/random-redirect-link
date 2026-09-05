@@ -1,5 +1,6 @@
 'use client';
 
+import { LifecycleBadge, LifecycleDates } from './LinkLifecycle';
 import { useEffect, useMemo, useRef } from 'react';
 import {
   CopyIcon,
@@ -117,6 +118,8 @@ export function LinkList({
 }: LinkListProps) {
   const { locale, t } = useLocale();
   const dateFormatter = useMemo(() => new Intl.DateTimeFormat(locale, {
+    timeZone: 'Asia/Singapore',
+    timeZoneName: 'short',
     year: 'numeric',
     month: '2-digit',
     day: '2-digit',
@@ -190,9 +193,7 @@ export function LinkList({
                     />
                   </td>
                   <td>
-                    <span className={record.enabled === false ? 'status-badge status-off' : 'status-badge'}>
-                      {record.enabled === false ? t('common.disabled') : t('common.enabled')}
-                    </span>
+                    <LifecycleBadge record={record} />
                   </td>
                   <td>
                     <button
@@ -204,6 +205,7 @@ export function LinkList({
                       {record.path}
                     </button>
                     <span className="table-secondary" title={shortUrl}>{shortUrl}</span>
+                    <LifecycleDates record={record} />
                   </td>
                   <td>
                     <span className="table-target" title={getLinkTarget(record)}>
@@ -251,10 +253,9 @@ export function LinkList({
                     {record.path}
                   </button>
                 </div>
-                <span className={record.enabled === false ? 'status-badge status-off' : 'status-badge'}>
-                  {record.enabled === false ? t('common.disabled') : t('common.enabled')}
-                </span>
+                <LifecycleBadge record={record} />
               </div>
+              <LifecycleDates record={record} />
               <dl>
                 <div>
                   <dt>{t('list.target')}</dt>

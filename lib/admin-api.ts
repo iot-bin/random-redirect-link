@@ -43,6 +43,9 @@ function translateUpstreamError(
   if (status === 401 || status === 403) {
     return errorResponse(502, '后台管理令牌无效，请检查运行环境配置', 'UPSTREAM_AUTH_FAILED');
   }
+  if (['INVALID_SCHEDULE', 'RETENTION_ENDED', 'LINK_DELETED', 'LINK_NOT_DELETED', 'RESTORE_EXPIRED', 'INVALID_VIEW'].includes(upstreamCode)) {
+    return errorResponse(status, upstreamError, upstreamCode);
+  }
   if (upstreamCode === 'INVALID_CURSOR') {
     return errorResponse(400, '分页信息已失效，请刷新列表', 'INVALID_CURSOR');
   }

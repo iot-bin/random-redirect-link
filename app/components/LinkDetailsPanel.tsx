@@ -1,5 +1,7 @@
 'use client';
 
+import { LifecycleBadge, LifecycleDates, ScheduleFields, useLifecycleClock } from './LinkLifecycle';
+import { scheduleInput, toLocalInput } from '@/lib/link-lifecycle';
 import { useMemo, useState } from 'react';
 import { DropdownSelect } from '@/app/components/DropdownSelect';
 import {
@@ -29,6 +31,7 @@ interface LinkDetailsPanelProps {
   record: LinkRecord | null;
   deleting: boolean;
   updating: boolean;
+  updateError?: string;
   copied: boolean;
   onCopy: (record: LinkRecord) => void;
   onClose?: () => void;
@@ -41,6 +44,7 @@ export function LinkDetailsPanel({
   record,
   deleting,
   updating,
+  updateError,
   copied,
   onCopy,
   onClose,
@@ -49,6 +53,8 @@ export function LinkDetailsPanel({
 }: LinkDetailsPanelProps) {
   const { locale, t } = useLocale();
   const dateFormatter = useMemo(() => new Intl.DateTimeFormat(locale, {
+    timeZone: 'Asia/Singapore',
+    timeZoneName: 'short',
     year: 'numeric',
     month: '2-digit',
     day: '2-digit',
@@ -56,6 +62,10 @@ export function LinkDetailsPanel({
     minute: '2-digit',
   }), [locale]);
   const [editing, setEditing] = useState(false);
+  const now = useLifecycleClock();
+  const retentionEnded = Boolean(record?.purgeAt && now >= record.purgeAt * 1000);
+  const [startsAt, setStartsAt] = useState(toLocalInput(record?.startsAt));
+  const [expiresAt, setExpiresAt] = useState(toLocalInput(record?.expiresAt));
   const [targetUrl, setTargetUrl] = useState(record ? getLinkTarget(record) : '');
   const [statusCode, setStatusCode] = useState<301 | 302>(
     record?.statusCode === 301 ? 301 : 302,
@@ -110,7 +120,11 @@ export function LinkDetailsPanel({
       }
     }
 
+    let schedule;
+    try { schedule = scheduleInput(startsAt, expiresAt); } catch { setFormError(t('life.invalid')); return; }
     const saved = await onUpdate(record, {
+      ...schedule,
+      ...(record.deletedAt ? { restore: true } : {}),
       targetUrl: normalizedTargetUrl,
       statusCode,
       ...(randomSubdomain ? { subdomainLength: parsedLength } : {}),
@@ -178,30 +192,38 @@ export function LinkDetailsPanel({
             ) : null}
           </div>
 
+          <ScheduleFields id="edit-schedule" startsAt={startsAt} expiresAt={expiresAt} onStart={setStartsAt} onExpiry={setExpiresAt} disabled={updating} />
+          {record.deletedAt ? <p className="field-help">{t('life.restoreHelp')}</p> : null}
           <label className="toggle-card edit-status-toggle">
             <span>
               <strong>{t('details.enableLink')}</strong>
-              <small>{t('details.disableHelp')}</small>
+              <small>{t('life.disabledHelp')}</small>
             </span>
             <input
               type="checkbox"
               checked={enabled}
               onChange={(event) => setEnabled(event.target.checked)}
-              disabled={updating}
+              disabled={updating || Boolean(record.deletedAt)}
             />
           </label>
 
+          {updateError ? <div className="alert alert-error" role="alert">{updateError}</div> : null}
           {formError ? <div className="alert alert-error" role="alert">{formError}</div> : null}
 
           <div className="form-actions">
-            <button className="button button-primary" type="submit" disabled={updating}>
-              {updating ? t('details.saving') : t('details.save')}
+            <button className="button button-primary" type="submit" disabled={updating || retentionEnded}>
+              {updating ? t('details.saving') : record.deletedAt ? t('life.restoreEdit') : t('details.save')}
             </button>
             <button
               className="button button-secondary"
               type="button"
               disabled={updating}
-              onClick={() => setEditing(false)}
+              onClick={() => {
+                setEditing(false); setFormError('');
+                setTargetUrl(getLinkTarget(record)); setStatusCode(record.statusCode === 301 ? 301 : 302);
+                setSubdomainLength(String(record.subdomainLength ?? 10)); setEnabled(record.enabled !== false);
+                setStartsAt(toLocalInput(record.startsAt)); setExpiresAt(toLocalInput(record.expiresAt));
+              }}
             >
               {t('common.cancel')}
             </button>
@@ -215,9 +237,7 @@ export function LinkDetailsPanel({
     <section className="panel manager-result manager-detail" aria-live="polite">
       <div className="manager-result-header">
         <div>
-          <span className={record.enabled === false ? 'status-badge status-off' : 'status-badge'}>
-            {record.enabled === false ? t('details.statusDisabled') : t('details.statusEnabled')}
-          </span>
+          <LifecycleBadge record={record} />
           <h2>{record.path}</h2>
           <p>{target?.name ?? t('common.noEnvironment')}</p>
         </div>
@@ -238,7 +258,7 @@ export function LinkDetailsPanel({
             type="button"
             onClick={() => setEditing(true)}
             title={t('details.edit')}
-            disabled={updating || deleting}
+            disabled={updating || deleting || retentionEnded}
           >
             <EditIcon />
             <span className="sr-only">{t('details.edit')}</span>
@@ -265,6 +285,8 @@ export function LinkDetailsPanel({
         </div>
       </div>
 
+      <LifecycleDates record={record} />
+      {updateError ? <div className="alert alert-error" role="alert">{updateError}</div> : null}
       <dl className="detail-grid">
         <div>
           <dt>{t('details.shortUrl')}</dt>
@@ -296,7 +318,7 @@ export function LinkDetailsPanel({
         </div>
       </dl>
 
-      <div className="status-control-zone">
+      <div className="status-control-zone" hidden={Boolean(record.deletedAt)}>
         <div>
           <h3>{record.enabled === false ? t('details.enableLink') : t('details.disableLink')}</h3>
           <p>
@@ -308,7 +330,7 @@ export function LinkDetailsPanel({
         <button
           className="button button-secondary"
           type="button"
-          disabled={updating || deleting}
+          disabled={updating || deleting || retentionEnded}
           onClick={() => void onUpdate(record, {
             enabled: record.enabled === false,
             expectedUpdatedAt: record.updatedAt,
@@ -321,7 +343,7 @@ export function LinkDetailsPanel({
         </button>
       </div>
 
-      <div className="danger-zone">
+      {!record.deletedAt ? <div className="danger-zone">
         <div>
           <h3>{t('details.deleteTitle')}</h3>
           <p>{t('details.deleteDescription')}</p>
@@ -330,12 +352,16 @@ export function LinkDetailsPanel({
           className="button button-danger"
           type="button"
           onClick={() => onDelete(record)}
-          disabled={deleting}
+          disabled={deleting || updating || retentionEnded}
         >
           <TrashIcon />
           {deleting ? t('details.deleting') : t('details.delete')}
         </button>
-      </div>
+      </div> : <div className="status-control-zone">
+        <div><h3>{t('life.trash')}</h3><p>{t(retentionEnded ? 'life.retentionEnded' : 'life.restoreHelp')}</p></div>
+        <button className="button button-primary" type="button" disabled={updating || deleting || retentionEnded} onClick={() => setEditing(true)}>{t('life.restoreEdit')}</button>
+        <button className="button button-secondary" type="button" disabled={updating || deleting || retentionEnded} onClick={() => void onUpdate(record, { restore: true, expectedUpdatedAt: record.updatedAt })}>{t('life.restore')}</button>
+      </div>}
     </section>
   );
 }
