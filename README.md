@@ -154,3 +154,13 @@ smoke tests, logs, and rollback. Building a package does not deploy it.
 ## License
 
 Licensed under the [Apache License 2.0](LICENSE).
+
+## Recycle bin and link schedules
+
+Links accept optional ISO 8601 startsAt/expiresAt timestamps with an explicit timezone. Null clears a timestamp on PATCH; an omitted field is unchanged. The console displays Singapore time (UTC+8). GET and HEAD check deletion, enabled state and the current time on every request. Existing links without these fields remain compatible.
+
+DELETE and batch delete now soft-delete links for 7 days; repeating deletion does not extend retention. GET /links?view=trash lists deleted links (default view=links excludes them). PATCH /links/{path} with restore:true restores a link, optionally including revised schedule fields. Batch action restore supports up to 50 paths. Restoration preserves enabled state; an elapsed expiry must be extended or cleared. Recovery/renewal is refused at the retention deadline. Paths remain reserved until physical deletion.
+
+DynamoDB TTL uses numeric Unix seconds in purgeAt, never expiresAt. Normal expiry schedules cleanup 7 days later; manual deletion schedules cleanup 7 days after deletion. TTL deletion is asynchronous. List filtering preserves pagination cursors; GSI results are eventually consistent. Conditional updates protect concurrent mutations; direct item reads are strongly consistent.
+
+Deployment order: deploy the public Lambda with lifecycle checks first, then the admin Lambda and console; enable TTL on purgeAt last after verification. The SAM template declares this TTL field for managed stacks. Existing manually managed production resources must be updated separately after approval; do not create a replacement table. No new API Gateway route is needed: restore uses the existing PATCH and batch routes. No production resource was changed during local implementation.
