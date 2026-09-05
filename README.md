@@ -78,7 +78,7 @@ Each `API_TARGETS` entry requires:
 
 - `id`: stable unique identifier.
 - `name`: label displayed in the console.
-- `apiBaseUrl`: Admin API base URL.
+- `apiBaseUrl`: HTTPS Admin API base URL.
 - `adminToken`: matching Admin Lambda Bearer token; server-side only.
 - `redirectBaseUrl`: public short-link origin displayed by the console.
 

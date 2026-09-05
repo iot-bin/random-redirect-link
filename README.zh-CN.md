@@ -78,7 +78,7 @@ DEFAULT_TARGET_ID=prod
 
 - `id`：稳定且唯一的标识符。
 - `name`：控制台显示名称。
-- `apiBaseUrl`：Admin API 基础地址。
+- `apiBaseUrl`：必须使用 HTTPS 的 Admin API 基础地址。
 - `adminToken`：与 Admin Lambda 匹配的 Bearer 令牌，只在服务端使用。
 - `redirectBaseUrl`：控制台显示的公共短链域名。
 
