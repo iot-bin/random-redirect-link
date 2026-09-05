@@ -1,0 +1,340 @@
+AWSTemplateFormatVersion: '2010-09-09'
+Transform: AWS::Serverless-2016-10-31
+Description: >
+  AWS backend for random-redirect-link: DynamoDB, two Node.js Lambda functions,
+  two HTTP APIs, access logs, throttling, and least-privilege IAM.
+
+Parameters:
+  Environment:
+    Type: String
+    Default: dev
+    AllowedValues:
+      - dev
+      - staging
+      - prod
+    Description: Deployment environment and API Gateway stage name.
+  LinksIndexName:
+    Type: String
+    Default: links-by-path
+    AllowedPattern: '^[A-Za-z0-9_.-]{3,255}$'
+    Description: Name of the DynamoDB index used to list links by path.
+  LogRetentionDays:
+    Type: Number
+    Default: 30
+    AllowedValues:
+      - 7
+      - 14
+      - 30
+      - 60
+      - 90
+      - 180
+      - 365
+    Description: CloudWatch Logs retention period.
+  AdminApiRateLimit:
+    Type: Number
+    Default: 10
+    MinValue: 1
+    MaxValue: 10000
+    Description: Steady-state requests per second for the Admin HTTP API.
+  AdminApiBurstLimit:
+    Type: Number
+    Default: 20
+    MinValue: 1
+    MaxValue: 10000
+    Description: Burst request limit for the Admin HTTP API.
+  PublicApiRateLimit:
+    Type: Number
+    Default: 100
+    MinValue: 1
+    MaxValue: 100000
+    Description: Steady-state requests per second for the public HTTP API.
+  PublicApiBurstLimit:
+    Type: Number
+    Default: 200
+    MinValue: 1
+    MaxValue: 100000
+    Description: Burst request limit for the public HTTP API.
+
+Globals:
+  Function:
+    Runtime: nodejs24.x
+    Architectures:
+      - x86_64
+    MemorySize: 256
+    Timeout: 10
+    Tracing: Active
+    Environment:
+      Variables:
+        NODE_OPTIONS: --enable-source-maps
+    Tags:
+      Application: random-redirect-link
+      Environment: !Ref Environment
+
+Resources:
+  LinksTable:
+    Type: AWS::DynamoDB::Table
+    DeletionPolicy: Retain
+    UpdateReplacePolicy: Retain
+    Properties:
+      BillingMode: PAY_PER_REQUEST
+      AttributeDefinitions:
+        - AttributeName: path
+          AttributeType: S
+        - AttributeName: listPk
+          AttributeType: S
+      KeySchema:
+        - AttributeName: path
+          KeyType: HASH
+      GlobalSecondaryIndexes:
+        - IndexName: !Ref LinksIndexName
+          KeySchema:
+            - AttributeName: listPk
+              KeyType: HASH
+            - AttributeName: path
+              KeyType: RANGE
+          Projection:
+            ProjectionType: ALL
+      PointInTimeRecoverySpecification:
+        PointInTimeRecoveryEnabled: true
+      SSESpecification:
+        SSEEnabled: true
+      Tags:
+        - Key: Application
+          Value: random-redirect-link
+        - Key: Environment
+          Value: !Ref Environment
+
+  AdminTokenSecret:
+    Type: AWS::SecretsManager::Secret
+    DeletionPolicy: Retain
+    UpdateReplacePolicy: Retain
+    Properties:
+      Description: !Sub Admin API bearer token for ${AWS::StackName}
+      GenerateSecretString:
+        ExcludePunctuation: true
+        PasswordLength: 48
+      Tags:
+        - Key: Application
+          Value: random-redirect-link
+        - Key: Environment
+          Value: !Ref Environment
+
+  AdminApiAccessLogGroup:
+    Type: AWS::Logs::LogGroup
+    Properties:
+      RetentionInDays: !Ref LogRetentionDays
+      Tags:
+        - Key: Application
+          Value: random-redirect-link
+        - Key: Environment
+          Value: !Ref Environment
+
+  PublicApiAccessLogGroup:
+    Type: AWS::Logs::LogGroup
+    Properties:
+      RetentionInDays: !Ref LogRetentionDays
+      Tags:
+        - Key: Application
+          Value: random-redirect-link
+        - Key: Environment
+          Value: !Ref Environment
+
+  AdminHttpApi:
+    Type: AWS::Serverless::HttpApi
+    Properties:
+      StageName: !Ref Environment
+      FailOnWarnings: true
+      AccessLogSettings:
+        DestinationArn: !GetAtt AdminApiAccessLogGroup.Arn
+        Format: >-
+          {"requestId":"$context.requestId","ip":"$context.identity.sourceIp",
+          "requestTime":"$context.requestTime","httpMethod":"$context.httpMethod",
+          "routeKey":"$context.routeKey","status":"$context.status",
+          "responseLength":"$context.responseLength",
+          "integrationError":"$context.integrationErrorMessage"}
+      DefaultRouteSettings:
+        ThrottlingBurstLimit: !Ref AdminApiBurstLimit
+        ThrottlingRateLimit: !Ref AdminApiRateLimit
+      Tags:
+        Application: random-redirect-link
+        Environment: !Ref Environment
+
+  PublicHttpApi:
+    Type: AWS::Serverless::HttpApi
+    Properties:
+      StageName: !Ref Environment
+      FailOnWarnings: true
+      AccessLogSettings:
+        DestinationArn: !GetAtt PublicApiAccessLogGroup.Arn
+        Format: >-
+          {"requestId":"$context.requestId","ip":"$context.identity.sourceIp",
+          "requestTime":"$context.requestTime","httpMethod":"$context.httpMethod",
+          "routeKey":"$context.routeKey","status":"$context.status",
+          "responseLength":"$context.responseLength",
+          "integrationError":"$context.integrationErrorMessage"}
+      DefaultRouteSettings:
+        ThrottlingBurstLimit: !Ref PublicApiBurstLimit
+        ThrottlingRateLimit: !Ref PublicApiRateLimit
+      Tags:
+        Application: random-redirect-link
+        Environment: !Ref Environment
+
+  AdminFunction:
+    Type: AWS::Serverless::Function
+    Properties:
+      Description: Create, list, update, batch mutate, and delete redirect links.
+      CodeUri: lambda/admin
+      Handler: index.handler
+      Environment:
+        Variables:
+          TABLE_NAME: !Ref LinksTable
+          LINKS_INDEX_NAME: !Ref LinksIndexName
+          ADMIN_TOKEN: !Sub '{{resolve:secretsmanager:${AdminTokenSecret}:SecretString}}'
+      Policies:
+        - Version: '2012-10-17'
+          Statement:
+            - Sid: ManageLinks
+              Effect: Allow
+              Action:
+                - dynamodb:DeleteItem
+                - dynamodb:GetItem
+                - dynamodb:PutItem
+                - dynamodb:Query
+                - dynamodb:UpdateItem
+              Resource:
+                - !GetAtt LinksTable.Arn
+                - !Sub
+                  - '${TableArn}/index/${IndexName}'
+                  - TableArn: !GetAtt LinksTable.Arn
+                    IndexName: !Ref LinksIndexName
+      Events:
+        CreateLink:
+          Type: HttpApi
+          Properties:
+            ApiId: !Ref AdminHttpApi
+            Path: /links
+            Method: POST
+        ListLinks:
+          Type: HttpApi
+          Properties:
+            ApiId: !Ref AdminHttpApi
+            Path: /links
+            Method: GET
+        BatchLinks:
+          Type: HttpApi
+          Properties:
+            ApiId: !Ref AdminHttpApi
+            Path: /links/batch
+            Method: POST
+        GetLink:
+          Type: HttpApi
+          Properties:
+            ApiId: !Ref AdminHttpApi
+            Path: /links/{proxy+}
+            Method: GET
+        UpdateLink:
+          Type: HttpApi
+          Properties:
+            ApiId: !Ref AdminHttpApi
+            Path: /links/{proxy+}
+            Method: PATCH
+        DeleteLink:
+          Type: HttpApi
+          Properties:
+            ApiId: !Ref AdminHttpApi
+            Path: /links/{proxy+}
+            Method: DELETE
+    Metadata:
+      BuildMethod: esbuild
+      BuildProperties:
+        EntryPoints:
+          - src/index.mjs
+        External:
+          - '@aws-sdk/client-dynamodb'
+          - '@aws-sdk/lib-dynamodb'
+        Format: esm
+        Minify: true
+        OutExtension:
+          - .js=.mjs
+        Sourcemap: true
+        Target: node24
+
+  PublicFunction:
+    Type: AWS::Serverless::Function
+    Properties:
+      Description: Resolve enabled links and return public HTTP redirects.
+      CodeUri: lambda/api
+      Handler: index.handler
+      Environment:
+        Variables:
+          TABLE_NAME: !Ref LinksTable
+      Policies:
+        - Version: '2012-10-17'
+          Statement:
+            - Sid: ReadLinks
+              Effect: Allow
+              Action:
+                - dynamodb:GetItem
+              Resource: !GetAtt LinksTable.Arn
+      Events:
+        GetRedirect:
+          Type: HttpApi
+          Properties:
+            ApiId: !Ref PublicHttpApi
+            Path: /{proxy+}
+            Method: GET
+        HeadRedirect:
+          Type: HttpApi
+          Properties:
+            ApiId: !Ref PublicHttpApi
+            Path: /{proxy+}
+            Method: HEAD
+    Metadata:
+      BuildMethod: esbuild
+      BuildProperties:
+        EntryPoints:
+          - src/index.mjs
+        External:
+          - '@aws-sdk/client-dynamodb'
+          - '@aws-sdk/lib-dynamodb'
+        Format: esm
+        Minify: true
+        OutExtension:
+          - .js=.mjs
+        Sourcemap: true
+        Target: node24
+
+  AdminFunctionLogGroup:
+    Type: AWS::Logs::LogGroup
+    Properties:
+      LogGroupName: !Sub '/aws/lambda/${AdminFunction}'
+      RetentionInDays: !Ref LogRetentionDays
+
+  PublicFunctionLogGroup:
+    Type: AWS::Logs::LogGroup
+    Properties:
+      LogGroupName: !Sub '/aws/lambda/${PublicFunction}'
+      RetentionInDays: !Ref LogRetentionDays
+
+Outputs:
+  LinksTableName:
+    Description: DynamoDB table that stores redirect links.
+    Value: !Ref LinksTable
+  LinksIndex:
+    Description: DynamoDB index used by the Admin API to list links.
+    Value: !Ref LinksIndexName
+  AdminApiBaseUrl:
+    Description: HTTPS base URL for API_TARGETS.apiBaseUrl.
+    Value: !Sub 'https://${AdminHttpApi}.execute-api.${AWS::Region}.${AWS::URLSuffix}/${Environment}'
+  PublicApiBaseUrl:
+    Description: HTTPS base URL for public redirects.
+    Value: !Sub 'https://${PublicHttpApi}.execute-api.${AWS::Region}.${AWS::URLSuffix}/${Environment}'
+  AdminTokenSecretArn:
+    Description: Secrets Manager ARN containing the generated Admin API token.
+    Value: !Ref AdminTokenSecret
+  AdminFunctionName:
+    Description: Name of the Admin Lambda function.
+    Value: !Ref AdminFunction
+  PublicFunctionName:
+    Description: Name of the public redirect Lambda function.
+    Value: !Ref PublicFunction

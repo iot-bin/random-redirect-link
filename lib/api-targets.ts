@@ -5,14 +5,31 @@ export interface ApiTarget extends PublicApiTarget {
   adminToken: string;
 }
 
-function isHttpUrl(value: unknown): value is string {
-  if (typeof value !== 'string') return false;
+function normalizeBaseUrl(
+  value: unknown,
+  { httpsOnly = false }: { httpsOnly?: boolean } = {},
+): string {
+  if (typeof value !== 'string') return '';
 
   try {
-    const url = new URL(value);
-    return url.protocol === 'https:' || url.protocol === 'http:';
+    const url = new URL(value.trim());
+    const allowedProtocol = httpsOnly
+      ? url.protocol === 'https:'
+      : url.protocol === 'https:' || url.protocol === 'http:';
+
+    if (
+      !allowedProtocol
+      || url.username
+      || url.password
+      || url.search
+      || url.hash
+    ) {
+      return '';
+    }
+
+    return url.toString().replace(/\/+$/, '');
   } catch {
-    return false;
+    return '';
   }
 }
 
@@ -36,15 +53,11 @@ export function parseApiTargets(): ApiTarget[] {
       const value = target as Record<string, unknown>;
       const id = typeof value.id === 'string' ? value.id.trim() : '';
       const name = typeof value.name === 'string' ? value.name.trim() : '';
-      const apiBaseUrl = isHttpUrl(value.apiBaseUrl)
-        ? value.apiBaseUrl.replace(/\/+$/, '')
-        : '';
+      const apiBaseUrl = normalizeBaseUrl(value.apiBaseUrl, { httpsOnly: true });
       const adminToken = typeof value.adminToken === 'string'
         ? value.adminToken
         : '';
-      const redirectBaseUrl = isHttpUrl(value.redirectBaseUrl)
-        ? value.redirectBaseUrl.replace(/\/+$/, '')
-        : '';
+      const redirectBaseUrl = normalizeBaseUrl(value.redirectBaseUrl);
 
       const valid =
         id.length > 0

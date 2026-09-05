@@ -78,7 +78,7 @@ DEFAULT_TARGET_ID=prod
 
 - `id`：稳定且唯一的标识符。
 - `name`：控制台显示名称。
-- `apiBaseUrl`：Admin API 基础地址。
+- `apiBaseUrl`：必须使用 HTTPS 的 Admin API 基础地址。
 - `adminToken`：与 Admin Lambda 匹配的 Bearer 令牌，只在服务端使用。
 - `redirectBaseUrl`：控制台显示的公共短链域名。
 
@@ -123,6 +123,8 @@ AWS SDK v3。需要固定并包含 SDK 版本时，在对应 Lambda 目录执行
 
 ## 部署教程
 
+- 完整 AWS SAM 基础设施：[English](docs/infrastructure.en.md) |
+  [简体中文](docs/infrastructure.zh-CN.md)
 - Admin Lambda：[English](docs/lambda-admin-deployment.en.md) |
   [简体中文](docs/lambda-admin-deployment.zh-CN.md)
 - 公共跳转 Lambda：[English](docs/lambda-api-deployment.en.md) |
