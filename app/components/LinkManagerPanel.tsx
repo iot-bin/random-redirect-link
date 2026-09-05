@@ -167,10 +167,20 @@ export function LinkManagerPanel({
   const [notice, setNotice] = useState('');
   const [copiedPath, setCopiedPath] = useState('');
   const copyTimerRef = useRef<number | null>(null);
+  const detailsRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
     tRef.current = t;
   }, [t]);
+
+  const showRecord = useCallback((record: LinkRecord) => {
+    setSelectedRecord(record);
+    if (window.matchMedia('(max-width: 1320px)').matches) {
+      window.requestAnimationFrame(() => {
+        detailsRef.current?.scrollIntoView({ behavior: 'smooth', block: 'start' });
+      });
+    }
+  }, []);
 
   const requestPage = useCallback(
     async (
@@ -265,7 +275,7 @@ export function LinkManagerPanel({
           return;
         }
 
-        setSelectedRecord(payload);
+        showRecord(payload);
         setSearchInput(path);
       } catch (requestError) {
         if (requestError instanceof Error && requestError.name === 'AbortError') return;
@@ -274,7 +284,7 @@ export function LinkManagerPanel({
         setLookupLoading(false);
       }
     },
-    [target],
+    [showRecord, target],
   );
 
   useEffect(() => {
@@ -856,7 +866,7 @@ export function LinkManagerPanel({
             loading={listLoading}
             emptyMessage={emptyMessage}
             selectedPaths={selectedPaths}
-            onSelect={setSelectedRecord}
+            onSelect={showRecord}
             onCopy={(record) => void copyShortUrl(record)}
             onToggleSelection={toggleSelection}
             onToggleAll={toggleAllVisible}
@@ -885,17 +895,25 @@ export function LinkManagerPanel({
           </nav>
         </section>
 
-        <LinkDetailsPanel
-          key={`${target?.id ?? 'none'}:${selectedRecord?.path ?? 'empty'}:${selectedRecord?.updatedAt ?? ''}`}
-          target={target}
-          record={selectedRecord}
-          deleting={deletingPath === selectedRecord?.path}
-          updating={updatingPath === selectedRecord?.path}
-          copied={copiedPath === selectedRecord?.path}
-          onCopy={(record) => void copyShortUrl(record)}
-          onDelete={(record) => void deleteLink(record)}
-          onUpdate={updateLink}
-        />
+        <div
+          ref={detailsRef}
+          className={selectedRecord
+            ? 'manager-detail-shell has-record'
+            : 'manager-detail-shell'}
+        >
+          <LinkDetailsPanel
+            key={`${target?.id ?? 'none'}:${selectedRecord?.path ?? 'empty'}:${selectedRecord?.updatedAt ?? ''}`}
+            target={target}
+            record={selectedRecord}
+            deleting={deletingPath === selectedRecord?.path}
+            updating={updatingPath === selectedRecord?.path}
+            copied={copiedPath === selectedRecord?.path}
+            onCopy={(record) => void copyShortUrl(record)}
+            onClose={() => setSelectedRecord(null)}
+            onDelete={(record) => void deleteLink(record)}
+            onUpdate={updateLink}
+          />
+        </div>
       </div>
     </div>
   );

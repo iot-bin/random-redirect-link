@@ -193,6 +193,7 @@ export const zhCN = {
   'details.statusEnabled': '已启用',
   'details.statusDisabled': '已停用',
   'details.edit': '编辑短链',
+  'details.close': '关闭详情',
   'details.copy': '复制短链',
   'details.copied': '已复制',
   'details.open': '打开短链',

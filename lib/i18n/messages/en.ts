@@ -195,6 +195,7 @@ export const en = {
   'details.statusEnabled': 'Enabled',
   'details.statusDisabled': 'Disabled',
   'details.edit': 'Edit link',
+  'details.close': 'Close details',
   'details.copy': 'Copy link',
   'details.copied': 'Copied',
   'details.open': 'Open link',

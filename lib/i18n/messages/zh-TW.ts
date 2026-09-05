@@ -195,6 +195,7 @@ export const zhTW = {
   'details.statusEnabled': '已啟用',
   'details.statusDisabled': '已停用',
   'details.edit': '編輯短連結',
+  'details.close': '關閉詳細資料',
   'details.copy': '複製短連結',
   'details.copied': '已複製',
   'details.open': '開啟短連結',
