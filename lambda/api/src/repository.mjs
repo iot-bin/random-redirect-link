@@ -5,7 +5,8 @@ import { ddb } from "./dynamodb.mjs";
 export async function getLinkByPath(path) {
   const response = await ddb.send(new GetCommand({
     TableName: TABLE_NAME,
-    Key: { path }
+    Key: { path },
+    ConsistentRead: true
   }));
 
   return response.Item;

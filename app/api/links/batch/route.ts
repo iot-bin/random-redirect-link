@@ -4,7 +4,7 @@ import { getLinkPathError, normalizeLinkPath } from '@/lib/link-path';
 import type { LinkBatchAction } from '@/lib/link-types';
 
 const MAX_BATCH_SIZE = 50;
-const BATCH_ACTIONS = new Set<LinkBatchAction>(['enable', 'disable', 'delete']);
+const BATCH_ACTIONS = new Set<LinkBatchAction>(['enable', 'disable', 'delete', 'restore']);
 
 function errorResponse(error: string, code: string) {
   return NextResponse.json(

@@ -2052,3 +2052,21 @@ select:focus-visible {
 .status-actions .button {
   min-width: 120px;
 }
+
+/* Link lifecycle: retain existing surfaces, focus styles and responsive layouts. */
+[hidden] { display: none !important; }
+.schedule-fields { min-width: 0; margin: 20px 0; padding: 16px; border: 1px solid var(--border); border-radius: 12px; }
+.schedule-fields legend { padding: 0 6px; font-weight: 600; }
+.schedule-fields .field-help { margin-bottom: 14px; }
+.schedule-fields input { min-width: 0; max-width: 100%; color-scheme: light; }
+[data-theme="dark"] .schedule-fields input { color-scheme: dark; }
+.lifecycle-dates { display: grid; gap: 5px; margin: 8px 0; color: var(--text-secondary); overflow-wrap: anywhere; }
+.life-active { background: var(--success-bg); color: var(--success-text); }
+.life-disabled, .life-purged { background: var(--surface-raised); color: var(--text-secondary); }
+.life-expired, .life-deleted { background: var(--error-bg); color: var(--error-text); }
+.life-scheduled { background: #eff6ff; color: #1d4ed8; }
+[data-theme="dark"] .life-scheduled { background: #172554; color: #bfdbfe; }
+@media (max-width: 700px) { .schedule-fields .edit-link-grid { grid-template-columns: minmax(0, 1fr); } }
+@media (prefers-reduced-motion: reduce) { html { scroll-behavior: auto; } }
+
+.link-card-heading > .status-badge { flex-shrink: 0; white-space: nowrap; }

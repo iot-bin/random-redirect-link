@@ -1,5 +1,5 @@
+import { lifecycleUpdate, RETENTION_SECONDS } from "./lifecycle.mjs";
 import {
-  DeleteCommand,
   GetCommand,
   PutCommand,
   QueryCommand,
@@ -35,7 +35,8 @@ export async function createLinkRecord(item) {
 export async function listLinkRecords({
   limit,
   prefix,
-  exclusiveStartKey
+  exclusiveStartKey,
+  view = "links"
 }) {
   const expressionAttributeNames = { "#listPk": LIST_PARTITION_ATTRIBUTE };
   const expressionAttributeValues = { ":listPk": LIST_PARTITION_VALUE };
@@ -47,66 +48,87 @@ export async function listLinkRecords({
     keyConditionExpression += " AND begins_with(#path, :prefix)";
   }
 
-  return ddb.send(
-    new QueryCommand({
-      TableName: TABLE_NAME,
-      IndexName: LINKS_INDEX_NAME,
-      KeyConditionExpression: keyConditionExpression,
-      ExpressionAttributeNames: expressionAttributeNames,
-      ExpressionAttributeValues: expressionAttributeValues,
-      Limit: limit,
-      ...(exclusiveStartKey ? { ExclusiveStartKey: exclusiveStartKey } : {}),
-      ScanIndexForward: true
-    })
-  );
+  expressionAttributeNames["#deletedAt"] = "deletedAt";
+  const items = [];
+  let key = exclusiveStartKey;
+  // Bound work per request, preserving the cursor even when a filtered page is empty.
+  for (let page = 0; page < 20; page++) {
+    const response = await ddb.send(
+      new QueryCommand({
+        TableName: TABLE_NAME,
+        IndexName: LINKS_INDEX_NAME,
+        KeyConditionExpression: keyConditionExpression,
+        FilterExpression:
+          view === "trash"
+            ? "attribute_exists(#deletedAt)"
+            : "attribute_not_exists(#deletedAt)",
+        ExpressionAttributeNames: expressionAttributeNames,
+        ExpressionAttributeValues: expressionAttributeValues,
+        Limit: limit - items.length,
+        ...(key ? { ExclusiveStartKey: key } : {}),
+        ScanIndexForward: true
+      })
+    );
+    items.push(...(response.Items ?? []));
+    key = response.LastEvaluatedKey;
+    if (!key || items.length >= limit) break;
+  }
+  return { Items: items, LastEvaluatedKey: key };
 }
 
 export async function getLinkRecord(path) {
   const response = await ddb.send(
-    new GetCommand({ TableName: TABLE_NAME, Key: { path } })
+    new GetCommand({
+      TableName: TABLE_NAME,
+      Key: { path },
+      ConsistentRead: true
+    })
   );
   return response.Item;
 }
 
-export async function deleteLinkRecord(path) {
-  const response = await ddb.send(
-    new DeleteCommand({
-      TableName: TABLE_NAME,
-      Key: { path },
-      ReturnValues: "ALL_OLD"
-    })
-  );
-  return response.Attributes;
-}
-
-export async function updateLinkRecord(path, fields, expectedUpdatedAt) {
-  const now = new Date().toISOString();
-  const names = {
-    "#path": "path",
-    "#updatedAt": "updatedAt"
-  };
-  const values = { ":updatedAt": now };
-  const assignments = ["#updatedAt = :updatedAt"];
-
-  for (const [name, value] of Object.entries(fields)) {
-    names[`#${name}`] = name;
-    values[`:${name}`] = value;
-    assignments.push(`#${name} = :${name}`);
+// Every mutation compares the snapshot read above, including legacy records.
+async function writeFields(path, fields, current, expectedUpdatedAt) {
+  if (expectedUpdatedAt && current.updatedAt !== expectedUpdatedAt) {
+    throw new HttpError(
+      409,
+      "LINK_VERSION_CONFLICT",
+      "link was updated by another request"
+    );
   }
-
-  let conditionExpression = "attribute_exists(#path)";
-  if (expectedUpdatedAt) {
-    values[":expectedUpdatedAt"] = expectedUpdatedAt;
-    conditionExpression += " AND #updatedAt = :expectedUpdatedAt";
+  const names = { "#path": "path", "#version": "updatedAt" };
+  const values = {};
+  const set = [],
+    remove = [];
+  // Ensure sequential writes cannot share the same version within one millisecond.
+  const updatedAt = new Date(
+    Math.max(Date.now(), (Date.parse(current.updatedAt) || 0) + 1)
+  ).toISOString();
+  for (const [key, value] of Object.entries({ ...fields, updatedAt })) {
+    const alias = "#f" + Object.keys(names).length;
+    names[alias] = key;
+    if (value === null) remove.push(alias);
+    else {
+      const token = ":v" + Object.keys(values).length;
+      values[token] = value;
+      set.push(alias + " = " + token);
+    }
   }
-
+  let condition = "attribute_exists(#path) AND ";
+  if (current.updatedAt) {
+    condition += "#version = :version";
+    values[":version"] = current.updatedAt;
+  } else condition += "attribute_not_exists(#version)";
   try {
     const response = await ddb.send(
       new UpdateCommand({
         TableName: TABLE_NAME,
         Key: { path },
-        UpdateExpression: `SET ${assignments.join(", ")}`,
-        ConditionExpression: conditionExpression,
+        UpdateExpression:
+          "SET " +
+          set.join(", ") +
+          (remove.length ? " REMOVE " + remove.join(", ") : ""),
+        ConditionExpression: condition,
         ExpressionAttributeNames: names,
         ExpressionAttributeValues: values,
         ReturnValues: "ALL_NEW"
@@ -114,52 +136,49 @@ export async function updateLinkRecord(path, fields, expectedUpdatedAt) {
     );
     return response.Attributes;
   } catch (error) {
-    if (error?.name !== "ConditionalCheckFailedException") throw error;
-
-    if (expectedUpdatedAt) {
-      const existing = await getLinkRecord(path);
-      if (existing) {
-        throw new HttpError(
-          409,
-          "LINK_VERSION_CONFLICT",
-          "link was updated by another request"
-        );
-      }
-    }
-
-    throw new HttpError(404, "LINK_NOT_FOUND", "not found");
+    if (error?.name === "ConditionalCheckFailedException")
+      throw new HttpError(
+        409,
+        "LINK_VERSION_CONFLICT",
+        "Refresh and retry; the link changed"
+      );
+    throw error;
   }
 }
-
-export async function deleteLinkRecordIfExists(path) {
-  await ddb.send(
-    new DeleteCommand({
-      TableName: TABLE_NAME,
-      Key: { path },
-      ConditionExpression: "attribute_exists(#path)",
-      ExpressionAttributeNames: { "#path": "path" }
-    })
+export async function deleteLinkRecord(path) {
+  const current = await getLinkRecord(path);
+  if (!current) return undefined;
+  if (current.deletedAt) return current;
+  const now = Date.now();
+  if (current.purgeAt != null && current.purgeAt <= now / 1000)
+    throw new HttpError(409, "RETENTION_ENDED", "Retention period has ended");
+  return writeFields(
+    path,
+    {
+      deletedAt: new Date(now).toISOString(),
+      purgeAt: Math.ceil(now / 1000) + RETENTION_SECONDS
+    },
+    current
   );
 }
-
-export async function updateLinkEnabledIfExists(path, enabled) {
-  const response = await ddb.send(
-    new UpdateCommand({
-      TableName: TABLE_NAME,
-      Key: { path },
-      UpdateExpression: "SET #enabled = :enabled, #updatedAt = :updatedAt",
-      ConditionExpression: "attribute_exists(#path)",
-      ExpressionAttributeNames: {
-        "#path": "path",
-        "#enabled": "enabled",
-        "#updatedAt": "updatedAt"
-      },
-      ExpressionAttributeValues: {
-        ":enabled": enabled,
-        ":updatedAt": new Date().toISOString()
-      },
-      ReturnValues: "ALL_NEW"
-    })
+export async function updateLinkRecord(path, fields, expectedUpdatedAt) {
+  const current = await getLinkRecord(path);
+  if (!current) throw new HttpError(404, "LINK_NOT_FOUND", "not found");
+  return writeFields(
+    path,
+    lifecycleUpdate(current, fields),
+    current,
+    expectedUpdatedAt
   );
-  return response.Attributes;
+}
+export async function deleteLinkRecordIfExists(path) {
+  const item = await deleteLinkRecord(path);
+  if (!item) throw new HttpError(404, "LINK_NOT_FOUND", "not found");
+  return item;
+}
+export async function restoreLinkRecord(path) {
+  return updateLinkRecord(path, { restore: true });
+}
+export async function updateLinkEnabledIfExists(path, enabled) {
+  return updateLinkRecord(path, { enabled });
 }

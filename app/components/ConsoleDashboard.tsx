@@ -12,6 +12,7 @@ import {
   MenuIcon,
   SearchIcon,
   SettingsIcon,
+  TrashIcon,
 } from '@/app/components/Icons';
 import { LinkManagerPanel } from '@/app/components/LinkManagerPanel';
 import { SettingsPanel } from '@/app/components/SettingsPanel';
@@ -20,7 +21,7 @@ import { useConsolePreferences } from '@/app/components/useConsolePreferences';
 import { useLocale } from '@/lib/i18n/LocaleProvider';
 import type { PublicApiTarget } from '@/lib/link-types';
 
-type ConsoleSection = 'create' | 'manage' | 'settings';
+type ConsoleSection = 'create' | 'manage' | 'trash' | 'settings';
 
 interface ConsoleDashboardProps {
   targets: PublicApiTarget[];
@@ -126,6 +127,7 @@ export function ConsoleDashboard({
       title: t('dashboard.manage'),
       description: t('dashboard.manageDescription'),
     },
+    trash: { title: t('life.trash'), description: t('life.trashHelp') },
     settings: {
       title: t('dashboard.settings'),
       description: t('dashboard.settingsDescription'),
@@ -169,6 +171,7 @@ export function ConsoleDashboard({
             <SearchIcon />
             <span>{t('dashboard.manage')}</span>
           </button>
+          <button className={section === 'trash' ? 'nav-item is-active' : 'nav-item'} type="button" aria-current={section === 'trash' ? 'page' : undefined} onClick={() => navigate('trash')}><TrashIcon /><span>{t('life.trash')}</span></button>
           <button
             className={section === 'settings' ? 'nav-item is-active' : 'nav-item'}
             type="button"
@@ -267,11 +270,12 @@ export function ConsoleDashboard({
             target={selectedTarget}
             onManage={manageCreatedLink}
           />
-        ) : section === 'manage' ? (
+        ) : section === 'manage' || section === 'trash' ? (
           <LinkManagerPanel
-            key={`${selectedTargetId}:${managerInitialPath}:${pageSize}`}
+            key={`${selectedTargetId}:${section}:${managerInitialPath}:${pageSize}`}
+            view={section === 'trash' ? 'trash' : 'links'}
             target={selectedTarget}
-            initialPath={managerInitialPath}
+            initialPath={section === 'trash' ? '' : managerInitialPath}
             pageSize={pageSize}
           />
         ) : (

@@ -168,8 +168,7 @@ aws lambda get-function-configuration `
         "dynamodb:GetItem",
         "dynamodb:PutItem",
         "dynamodb:Query",
-        "dynamodb:UpdateItem",
-        "dynamodb:DeleteItem"
+        "dynamodb:UpdateItem"
       ],
       "Resource": [
         "arn:aws:dynamodb:ap-southeast-1:ACCOUNT_ID:table/random-redirect-link",
@@ -393,3 +392,7 @@ aws lambda wait function-updated `
 
 代码回滚不会自动还原 API Gateway 路由或 Lambda 配置。如果本次同时修改了这些资源，
 需要分别恢复。
+
+## 生命周期功能上线
+
+先部署跳转 Lambda 的删除和有效期检查，再部署此管理版本。DELETE 改为软删除；恢复使用现有 PATCH 路由（restore:true）或批量 restore。应用验证完成后，最后启用数值字段 purgeAt 的 DynamoDB TTL，不能使用 expiresAt 作为 TTL 字段。详见 [回收站与有效期](../README.zh-CN.md#回收站与有效期)。

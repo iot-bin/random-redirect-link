@@ -1,6 +1,8 @@
 'use client';
 
 import { useMemo, useRef, useState } from 'react';
+import { ScheduleFields, LifecycleBadge, LifecycleDates } from './LinkLifecycle';
+import { scheduleInput } from '@/lib/link-lifecycle';
 import { QRCodeSVG } from 'qrcode.react';
 import {
   CheckIcon,
@@ -40,6 +42,8 @@ export function CreateLinkPanel({
 }: CreateLinkPanelProps) {
   const { t } = useLocale();
   const [path, setPath] = useState('');
+  const [startsAt, setStartsAt] = useState('');
+  const [expiresAt, setExpiresAt] = useState('');
   const [targetUrl, setTargetUrl] = useState('');
   const [randomSubdomain, setRandomSubdomain] = useState(true);
   const [subdomainLength, setSubdomainLength] = useState(5);
@@ -88,6 +92,8 @@ export function CreateLinkPanel({
       return;
     }
 
+    let schedule;
+    try { schedule = scheduleInput(startsAt, expiresAt); } catch { setError(t('life.invalid')); return; }
     setSubmitting(true);
     try {
       const response = await fetch('/api/links', {
@@ -96,6 +102,7 @@ export function CreateLinkPanel({
         body: JSON.stringify({
           targetId: target?.id,
           path: normalizedPath,
+          ...schedule,
           targetUrl: targetUrl.trim(),
           randomSubdomain,
           ...(randomSubdomain ? { subdomainLength } : {}),
@@ -155,7 +162,7 @@ export function CreateLinkPanel({
           </div>
         </div>
 
-        <form className="link-form" onSubmit={handleSubmit} noValidate>
+        <form className="link-form" onSubmit={handleSubmit}>
           <div className="form-field">
             <label htmlFor="link-path">{t('create.path')}</label>
             <div className="input-prefix-group">
@@ -256,6 +263,7 @@ export function CreateLinkPanel({
             </div>
           ) : null}
 
+          <ScheduleFields id="create-schedule" startsAt={startsAt} expiresAt={expiresAt} onStart={setStartsAt} onExpiry={setExpiresAt} disabled={submitting} />
           <div className="form-actions">
             <button
               className="button button-primary"
@@ -311,6 +319,8 @@ export function CreateLinkPanel({
               </div>
             </dl>
 
+            <LifecycleBadge record={result} />
+            <LifecycleDates record={result} />
             <div className="result-actions">
               <button className="button button-primary" type="button" onClick={copyShortUrl}>
                 <CopyIcon />
