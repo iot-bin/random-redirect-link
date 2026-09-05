@@ -8,6 +8,21 @@ import { ThemeToggle } from '../components/ThemeProvider';
 import { translateApiError } from '@/lib/i18n/errors';
 import { useLocale } from '@/lib/i18n/LocaleProvider';
 
+function getSafeReturnPath(): string {
+  const requestedPath = new URLSearchParams(window.location.search).get('from');
+  if (!requestedPath || !requestedPath.startsWith('/') || requestedPath.startsWith('//')) {
+    return '/';
+  }
+
+  try {
+    const returnUrl = new URL(requestedPath, window.location.origin);
+    if (returnUrl.origin !== window.location.origin) return '/';
+    return `${returnUrl.pathname}${returnUrl.search}${returnUrl.hash}`;
+  } catch {
+    return '/';
+  }
+}
+
 export default function LoginPage() {
   const router = useRouter();
   const { t } = useLocale();
@@ -39,7 +54,7 @@ export default function LoginPage() {
         return;
       }
 
-      router.push('/');
+      router.replace(getSafeReturnPath());
       router.refresh();
     } catch {
       setError(t('login.networkError'));
