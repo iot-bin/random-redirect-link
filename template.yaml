@@ -76,6 +76,9 @@ Resources:
     DeletionPolicy: Retain
     UpdateReplacePolicy: Retain
     Properties:
+      TimeToLiveSpecification:
+        AttributeName: purgeAt
+        Enabled: true
       BillingMode: PAY_PER_REQUEST
       AttributeDefinitions:
         - AttributeName: path
@@ -196,7 +199,6 @@ Resources:
             - Sid: ManageLinks
               Effect: Allow
               Action:
-                - dynamodb:DeleteItem
                 - dynamodb:GetItem
                 - dynamodb:PutItem
                 - dynamodb:Query
