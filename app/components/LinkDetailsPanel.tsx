@@ -3,6 +3,7 @@
 import { useMemo, useState } from 'react';
 import { DropdownSelect } from '@/app/components/DropdownSelect';
 import {
+  CloseIcon,
   CopyIcon,
   EditIcon,
   ExternalLinkIcon,
@@ -30,6 +31,7 @@ interface LinkDetailsPanelProps {
   updating: boolean;
   copied: boolean;
   onCopy: (record: LinkRecord) => void;
+  onClose?: () => void;
   onDelete: (record: LinkRecord) => void;
   onUpdate: (record: LinkRecord, update: LinkUpdateInput) => Promise<boolean>;
 }
@@ -41,6 +43,7 @@ export function LinkDetailsPanel({
   updating,
   copied,
   onCopy,
+  onClose,
   onDelete,
   onUpdate,
 }: LinkDetailsPanelProps) {
@@ -219,6 +222,17 @@ export function LinkDetailsPanel({
           <p>{target?.name ?? t('common.noEnvironment')}</p>
         </div>
         <div className="compact-actions">
+          {onClose ? (
+            <button
+              className="icon-button manager-detail-close"
+              type="button"
+              onClick={onClose}
+              title={t('details.close')}
+            >
+              <CloseIcon />
+              <span className="sr-only">{t('details.close')}</span>
+            </button>
+          ) : null}
           <button
             className="icon-button"
             type="button"

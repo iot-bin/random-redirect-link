@@ -1214,6 +1214,95 @@ select:focus-visible {
   font-size: 11px;
 }
 
+.batch-confirmation,
+.batch-feedback {
+  display: grid;
+  gap: 12px;
+  padding: 16px 18px;
+  border-bottom: 1px solid var(--border-subtle);
+  background: var(--surface-raised);
+}
+
+.batch-confirmation {
+  grid-template-columns: minmax(0, 1fr) auto;
+  border-left: 3px solid var(--error-text);
+}
+
+.batch-confirmation strong,
+.batch-feedback strong {
+  font-size: 12px;
+}
+
+.batch-confirmation p,
+.batch-feedback p {
+  margin: 5px 0 0;
+  color: var(--text-secondary);
+  font-size: 11px;
+  line-height: 1.55;
+}
+
+.batch-path-list,
+.batch-failure-list {
+  display: grid;
+  gap: 6px;
+  margin: 10px 0 0;
+  padding-left: 18px;
+  color: var(--text-secondary);
+  font-size: 11px;
+}
+
+.batch-path-list li,
+.batch-failure-list code {
+  overflow-wrap: anywhere;
+}
+
+.batch-confirmation-actions {
+  display: flex;
+  align-items: flex-start;
+  gap: 8px;
+}
+
+.batch-feedback {
+  border-left: 3px solid var(--success-text);
+}
+
+.batch-feedback.has-failures,
+.batch-feedback.is-uncertain {
+  border-left-color: var(--error-text);
+}
+
+.batch-feedback-heading {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 16px;
+}
+
+.batch-failure-list {
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.batch-failure-list li {
+  display: grid;
+  grid-template-columns: minmax(120px, 0.35fr) minmax(0, 1fr);
+  gap: 12px;
+  padding: 8px 10px;
+  border: 1px solid var(--border-subtle);
+  border-radius: 7px;
+  background: var(--surface);
+  color: var(--text-secondary);
+}
+
+.batch-failure-list code {
+  color: var(--text-primary);
+}
+
+.batch-feedback > .button {
+  justify-self: start;
+}
+
 .list-alert {
   padding: 16px 22px 0;
 }
@@ -1421,9 +1510,14 @@ select:focus-visible {
   white-space: nowrap;
 }
 
-.manager-detail {
+.manager-detail-shell {
   position: sticky;
   top: 28px;
+  min-width: 0;
+}
+
+.manager-detail {
+  position: static;
 }
 
 .manager-result {
@@ -1463,6 +1557,10 @@ select:focus-visible {
 .compact-actions {
   display: flex;
   gap: 7px;
+}
+
+.manager-detail-close {
+  display: none;
 }
 
 .icon-button {
@@ -1584,8 +1682,18 @@ select:focus-visible {
     grid-template-columns: 1fr;
   }
 
-  .manager-detail {
+  .manager-detail-shell {
     position: static;
+    order: -1;
+    scroll-margin-top: 28px;
+  }
+
+  .manager-detail-shell:not(.has-record) {
+    display: none;
+  }
+
+  .manager-detail-close {
+    display: inline-flex;
   }
 }
 
@@ -1659,6 +1767,11 @@ select:focus-visible {
   .link-card .table-actions {
     justify-content: flex-start;
   }
+
+  .link-card .icon-button-small {
+    width: 44px;
+    height: 44px;
+  }
 }
 
 @media (max-width: 900px) {
@@ -1704,6 +1817,10 @@ select:focus-visible {
 
   .console-main {
     padding: 0 18px 40px;
+  }
+
+  .manager-detail-shell {
+    scroll-margin-top: 82px;
   }
 
   .mobile-header {
@@ -1791,6 +1908,35 @@ select:focus-visible {
   .bulk-actions {
     align-items: stretch;
     flex-direction: column;
+  }
+
+  .batch-confirmation {
+    grid-template-columns: 1fr;
+  }
+
+  .batch-confirmation-actions {
+    align-items: stretch;
+    flex-direction: column;
+  }
+
+  .batch-confirmation-actions .button {
+    width: 100%;
+    min-height: 44px;
+  }
+
+  .batch-feedback-heading {
+    align-items: stretch;
+    flex-direction: column;
+  }
+
+  .batch-failure-list li {
+    grid-template-columns: 1fr;
+    gap: 4px;
+  }
+
+  .batch-feedback > .button {
+    width: 100%;
+    min-height: 44px;
   }
 
   .bulk-actions .button,
