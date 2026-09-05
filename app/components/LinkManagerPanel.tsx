@@ -21,6 +21,7 @@ import {
 import type {
   DeleteLinkResponse,
   LinkBatchAction,
+  LinkBatchFailure,
   LinkBatchResponse,
   LinkListResponse,
   LinkRecord,
@@ -39,6 +40,19 @@ interface LinkManagerPanelProps {
   pageSize: PageSize;
   initialPath?: string;
 }
+
+type BatchFeedback =
+  | {
+    kind: 'result';
+    action: LinkBatchAction;
+    succeededCount: number;
+    failed: LinkBatchFailure[];
+  }
+  | {
+    kind: 'uncertain';
+    action: LinkBatchAction;
+    requestedCount: number;
+  };
 
 function isLinkRecord(value: unknown): value is LinkRecord {
   return (
@@ -145,6 +159,8 @@ export function LinkManagerPanel({
   const [deletingPath, setDeletingPath] = useState('');
   const [updatingPath, setUpdatingPath] = useState('');
   const [batchAction, setBatchAction] = useState<LinkBatchAction | null>(null);
+  const [batchFeedback, setBatchFeedback] = useState<BatchFeedback | null>(null);
+  const [pendingDeletePaths, setPendingDeletePaths] = useState<string[]>([]);
   const [selectedPaths, setSelectedPaths] = useState<string[]>([]);
   const [listError, setListError] = useState('');
   const [searchError, setSearchError] = useState('');
@@ -200,6 +216,7 @@ export function LinkManagerPanel({
         setItems(result.items);
         setNextCursor(result.nextCursor);
         setSelectedPaths([]);
+        setPendingDeletePaths([]);
         return result;
       } catch (requestError) {
         if (requestError instanceof Error && requestError.name === 'AbortError') {
@@ -280,6 +297,12 @@ export function LinkManagerPanel({
       window.clearTimeout(copyTimerRef.current);
     }
   }, []);
+
+  function getBatchActionLabel(action: LinkBatchAction) {
+    if (action === 'enable') return t('manager.actionEnable');
+    if (action === 'disable') return t('manager.actionDisable');
+    return t('manager.actionDelete');
+  }
 
   async function applyPrefix() {
     const prefix = normalizeLinkPrefix(searchInput);
@@ -393,6 +416,7 @@ export function LinkManagerPanel({
   }
 
   function toggleSelection(path: string) {
+    setPendingDeletePaths([]);
     setSelectedPaths((current) => (
       current.includes(path)
         ? current.filter((item) => item !== path)
@@ -401,24 +425,45 @@ export function LinkManagerPanel({
   }
 
   function toggleAllVisible() {
+    setPendingDeletePaths([]);
     const visiblePaths = items.map((record) => record.path);
     const allSelected = visiblePaths.every((path) => selectedPaths.includes(path));
     setSelectedPaths(allSelected ? [] : visiblePaths);
   }
 
-  async function runBatchAction(action: LinkBatchAction) {
-    if (!target || selectedPaths.length === 0) return;
+  async function runBatchAction(
+    action: LinkBatchAction,
+    paths: string[] = selectedPaths,
+    deleteConfirmed = false,
+  ) {
+    if (!target || paths.length === 0) return;
 
-    if (action === 'delete') {
-      const confirmed = window.confirm(
-        t('manager.batchDeleteConfirm', { count: selectedPaths.length }),
-      );
-      if (!confirmed) return;
+    const requestedPaths = [...paths];
+    if (action === 'delete' && !deleteConfirmed) {
+      setBatchFeedback(null);
+      setPendingDeletePaths(requestedPaths);
+      return;
     }
 
+    setPendingDeletePaths([]);
     setBatchAction(action);
+    setBatchFeedback(null);
     setSearchError('');
     setNotice('');
+
+    const currentCursor = cursorStack[cursorStack.length - 1] ?? null;
+    const reconcilePage = async () => {
+      const refreshed = await requestPage(currentCursor, activePrefix);
+      if (
+        action === 'delete'
+        && refreshed?.items.length === 0
+        && cursorStack.length > 1
+      ) {
+        const previousCursor = cursorStack[cursorStack.length - 2] ?? null;
+        const previousPage = await requestPage(previousCursor, activePrefix);
+        if (previousPage) setCursorStack((current) => current.slice(0, -1));
+      }
+    };
 
     try {
       const response = await fetch('/api/links/batch', {
@@ -427,19 +472,31 @@ export function LinkManagerPanel({
         body: JSON.stringify({
           targetId: target.id,
           action,
-          paths: selectedPaths,
+          paths: requestedPaths,
         }),
       });
       const payload: unknown = await response.json().catch(() => ({}));
 
       if (!response.ok) {
         setSearchError(translateApiError(payload, t, 'manager.batchFailed'));
+        setBatchFeedback({
+          kind: 'uncertain',
+          action,
+          requestedCount: requestedPaths.length,
+        });
+        await reconcilePage();
         return;
       }
 
       const result = parseLinkBatchResponse(payload);
       if (!result) {
         setSearchError(t('manager.invalidBatch'));
+        setBatchFeedback({
+          kind: 'uncertain',
+          action,
+          requestedCount: requestedPaths.length,
+        });
+        await reconcilePage();
         return;
       }
 
@@ -458,31 +515,23 @@ export function LinkManagerPanel({
       setItems((current) => current
         .filter((record) => action !== 'delete' || !successfulPaths.has(record.path))
         .map((record) => updatedItems.get(record.path) ?? record));
+      setBatchFeedback({
+        kind: 'result',
+        action,
+        succeededCount: result.succeeded.length,
+        failed: result.failed,
+      });
 
-      const actionLabel = action === 'enable'
-        ? t('manager.actionEnable')
-        : action === 'disable' ? t('manager.actionDisable') : t('manager.actionDelete');
-      setNotice(t('manager.batchSuccess', {
-        action: actionLabel,
-        count: result.succeeded.length,
-      }));
-      if (result.failed.length > 0) {
-        setSearchError(t('manager.batchPartialFailure', { count: result.failed.length }));
-      }
-
-      const currentCursor = cursorStack[cursorStack.length - 1] ?? null;
-      const refreshed = await requestPage(currentCursor, activePrefix);
-      if (
-        action === 'delete'
-        && refreshed?.items.length === 0
-        && cursorStack.length > 1
-      ) {
-        const previousCursor = cursorStack[cursorStack.length - 2] ?? null;
-        const previousPage = await requestPage(previousCursor, activePrefix);
-        if (previousPage) setCursorStack((current) => current.slice(0, -1));
-      }
+      await reconcilePage();
+      setSelectedPaths(result.failed.map((entry) => entry.path));
     } catch {
       setSearchError(t('common.networkError'));
+      setBatchFeedback({
+        kind: 'uncertain',
+        action,
+        requestedCount: requestedPaths.length,
+      });
+      await reconcilePage();
     } finally {
       setBatchAction(null);
     }
@@ -653,7 +702,10 @@ export function LinkManagerPanel({
                   className="bulk-clear-button"
                   type="button"
                   disabled={batchAction !== null || listLoading}
-                  onClick={() => setSelectedPaths([])}
+                  onClick={() => {
+                    setSelectedPaths([]);
+                    setPendingDeletePaths([]);
+                  }}
                 >
                   {t('manager.clearSelection')}
                 </button>
@@ -684,6 +736,116 @@ export function LinkManagerPanel({
                   {batchAction === 'delete' ? t('manager.deleting') : t('manager.bulkDelete')}
                 </button>
               </div>
+            </div>
+          ) : null}
+
+          {pendingDeletePaths.length > 0 ? (
+            <div className="batch-confirmation" role="alert">
+              <div>
+                <strong>{t('manager.batchDeleteReviewTitle')}</strong>
+                <p>{t('manager.batchDeleteConfirm', { count: pendingDeletePaths.length })}</p>
+                <ul className="batch-path-list">
+                  {pendingDeletePaths.slice(0, 5).map((path) => (
+                    <li key={path}>{path}</li>
+                  ))}
+                </ul>
+                {pendingDeletePaths.length > 5 ? (
+                  <p>{t('manager.batchMorePaths', {
+                    count: pendingDeletePaths.length - 5,
+                  })}</p>
+                ) : null}
+              </div>
+              <div className="batch-confirmation-actions">
+                <button
+                  className="button button-danger"
+                  type="button"
+                  onClick={() => void runBatchAction('delete', pendingDeletePaths, true)}
+                >
+                  {t('manager.batchConfirmDelete')}
+                </button>
+                <button
+                  className="button button-secondary"
+                  type="button"
+                  onClick={() => setPendingDeletePaths([])}
+                >
+                  {t('common.cancel')}
+                </button>
+              </div>
+            </div>
+          ) : null}
+
+          {batchFeedback ? (
+            <div
+              className={batchFeedback.kind === 'uncertain'
+                ? 'batch-feedback is-uncertain'
+                : batchFeedback.failed.length > 0
+                  ? 'batch-feedback has-failures'
+                  : 'batch-feedback is-success'}
+              role={batchFeedback.kind === 'uncertain'
+                || batchFeedback.failed.length > 0 ? 'alert' : 'status'}
+            >
+              <div className="batch-feedback-heading">
+                <div>
+                  <strong>
+                    {batchFeedback.kind === 'uncertain'
+                      ? t('manager.batchUnknownTitle')
+                      : t('manager.batchResultTitle', {
+                        action: getBatchActionLabel(batchFeedback.action),
+                      })}
+                  </strong>
+                  <p>
+                    {batchFeedback.kind === 'uncertain'
+                      ? t('manager.batchUnknownDescription', {
+                        count: batchFeedback.requestedCount,
+                      })
+                      : t('manager.batchResultSummary', {
+                        succeeded: batchFeedback.succeededCount,
+                        failed: batchFeedback.failed.length,
+                      })}
+                  </p>
+                </div>
+                <button
+                  className="bulk-clear-button"
+                  type="button"
+                  onClick={() => setBatchFeedback(null)}
+                >
+                  {t('manager.batchDismiss')}
+                </button>
+              </div>
+
+              {batchFeedback.kind === 'result' && batchFeedback.failed.length > 0 ? (
+                <>
+                  <ul className="batch-failure-list">
+                    {batchFeedback.failed.slice(0, 5).map((failure) => (
+                      <li key={failure.path}>
+                        <code>{failure.path}</code>
+                        <span>{translateApiError(
+                          failure,
+                          t,
+                          'manager.batchFailed',
+                        )}</span>
+                      </li>
+                    ))}
+                  </ul>
+                  {batchFeedback.failed.length > 5 ? (
+                    <p>{t('manager.batchMoreFailures', {
+                      count: batchFeedback.failed.length - 5,
+                    })}</p>
+                  ) : null}
+                  <button
+                    className="button button-secondary"
+                    type="button"
+                    disabled={batchAction !== null || listLoading}
+                    onClick={() => void runBatchAction(
+                      batchFeedback.action,
+                      batchFeedback.failed.map((failure) => failure.path),
+                      true,
+                    )}
+                  >
+                    {t('manager.batchRetryFailed')}
+                  </button>
+                </>
+              ) : null}
             </div>
           ) : null}
 
