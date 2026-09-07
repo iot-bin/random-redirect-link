@@ -648,7 +648,7 @@ select:focus-visible {
 }
 
 .settings-row label {
-  display: block;
+  display: inline-block;
   color: var(--text-primary);
   font-size: 13px;
   font-weight: 650;
