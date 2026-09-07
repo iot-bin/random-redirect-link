@@ -8,6 +8,7 @@ import {
   RefreshIcon,
   SearchIcon,
 } from '@/app/components/Icons';
+import { DetailsDrawer } from '@/app/components/DetailsDrawer';
 import { LinkDetailsPanel } from '@/app/components/LinkDetailsPanel';
 import { LinkList } from '@/app/components/LinkList';
 import {
@@ -19,7 +20,6 @@ import {
   normalizeLinkPrefix,
 } from '@/lib/link-path';
 import type {
-  DeleteLinkResponse,
   LinkBatchAction,
   LinkBatchFailure,
   LinkBatchResponse,
@@ -39,6 +39,7 @@ interface LinkManagerPanelProps {
   target: PublicApiTarget | null;
   pageSize: PageSize;
   initialPath?: string;
+  view?: 'links' | 'trash';
 }
 
 type BatchFeedback =
@@ -80,13 +81,6 @@ function parseLinkListResponse(value: unknown): LinkListResponse | null {
   };
 }
 
-function isDeleteLinkResponse(value: unknown): value is DeleteLinkResponse {
-  if (typeof value !== 'object' || value === null) return false;
-
-  const response = value as Record<string, unknown>;
-  return response.deleted === true && typeof response.path === 'string';
-}
-
 function parseLinkBatchResponse(value: unknown): LinkBatchResponse | null {
   if (typeof value !== 'object' || value === null) return null;
 
@@ -95,6 +89,7 @@ function parseLinkBatchResponse(value: unknown): LinkBatchResponse | null {
     response.action !== 'enable'
     && response.action !== 'disable'
     && response.action !== 'delete'
+    && response.action !== 'restore'
   ) {
     return null;
   }
@@ -145,6 +140,7 @@ export function LinkManagerPanel({
   target,
   pageSize,
   initialPath = '',
+  view = 'links',
 }: LinkManagerPanelProps) {
   const { t } = useLocale();
   const tRef = useRef(t);
@@ -156,7 +152,6 @@ export function LinkManagerPanel({
   const [cursorStack, setCursorStack] = useState<Array<string | null>>([null]);
   const [listLoading, setListLoading] = useState(false);
   const [lookupLoading, setLookupLoading] = useState(false);
-  const [deletingPath, setDeletingPath] = useState('');
   const [updatingPath, setUpdatingPath] = useState('');
   const [batchAction, setBatchAction] = useState<LinkBatchAction | null>(null);
   const [batchFeedback, setBatchFeedback] = useState<BatchFeedback | null>(null);
@@ -167,7 +162,13 @@ export function LinkManagerPanel({
   const [notice, setNotice] = useState('');
   const [copiedPath, setCopiedPath] = useState('');
   const copyTimerRef = useRef<number | null>(null);
-  const detailsRef = useRef<HTMLDivElement>(null);
+  const confirmationRef = useRef<HTMLDivElement>(null);
+  useEffect(() => {
+    if (!pendingDeletePaths.length) return;
+    const reducedMotion = window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+    confirmationRef.current?.scrollIntoView({ behavior: reducedMotion ? 'instant' : 'smooth', block: 'center' });
+    confirmationRef.current?.focus({ preventScroll: true });
+  }, [pendingDeletePaths.length]);
 
   useEffect(() => {
     tRef.current = t;
@@ -175,11 +176,6 @@ export function LinkManagerPanel({
 
   const showRecord = useCallback((record: LinkRecord) => {
     setSelectedRecord(record);
-    if (window.matchMedia('(max-width: 1320px)').matches) {
-      window.requestAnimationFrame(() => {
-        detailsRef.current?.scrollIntoView({ behavior: 'smooth', block: 'start' });
-      });
-    }
   }, []);
 
   const requestPage = useCallback(
@@ -201,6 +197,7 @@ export function LinkManagerPanel({
       const query = new URLSearchParams({
         targetId: target.id,
         limit: String(pageSize),
+        view,
       });
       if (cursor) query.set('cursor', cursor);
       if (prefix) query.set('prefix', prefix);
@@ -238,7 +235,7 @@ export function LinkManagerPanel({
         setListLoading(false);
       }
     },
-    [pageSize, target],
+    [pageSize, target, view],
   );
 
   const lookupExact = useCallback(
@@ -309,6 +306,7 @@ export function LinkManagerPanel({
   }, []);
 
   function getBatchActionLabel(action: LinkBatchAction) {
+    if (action === 'restore') return t('life.restore');
     if (action === 'enable') return t('manager.actionEnable');
     if (action === 'disable') return t('manager.actionDisable');
     return t('manager.actionDelete');
@@ -409,6 +407,13 @@ export function LinkManagerPanel({
       }
 
       const updatedRecord = payload;
+      if (update.restore) {
+        setSelectedRecord(null);
+        await requestPage(cursorStack[cursorStack.length - 1] ?? null, activePrefix);
+        if (view === 'trash') setItems(current => current.filter(item => item.path !== record.path));
+        setNotice(t('life.restored', { path: record.path }));
+        return true;
+      }
       setItems((current) => current.map((item) => (
         item.path === updatedRecord.path ? updatedRecord : item
       )));
@@ -465,7 +470,7 @@ export function LinkManagerPanel({
     const reconcilePage = async () => {
       const refreshed = await requestPage(currentCursor, activePrefix);
       if (
-        action === 'delete'
+        ['delete', 'restore'].includes(action)
         && refreshed?.items.length === 0
         && cursorStack.length > 1
       ) {
@@ -519,11 +524,11 @@ export function LinkManagerPanel({
 
       setSelectedRecord((current) => {
         if (!current || !successfulPaths.has(current.path)) return current;
-        if (action === 'delete') return null;
+        if (action === 'delete' || action === 'restore') return null;
         return updatedItems.get(current.path) ?? current;
       });
       setItems((current) => current
-        .filter((record) => action !== 'delete' || !successfulPaths.has(record.path))
+        .filter((record) => !['delete', 'restore'].includes(action) || !successfulPaths.has(record.path))
         .map((record) => updatedItems.get(record.path) ?? record));
       setBatchFeedback({
         kind: 'result',
@@ -533,6 +538,10 @@ export function LinkManagerPanel({
       });
 
       await reconcilePage();
+      // A just-written item can still appear in the eventually consistent GSI.
+      setItems(current => current
+        .filter(record => !['delete', 'restore'].includes(action) || !successfulPaths.has(record.path))
+        .map(record => updatedItems.get(record.path) ?? record));
       setSelectedPaths(result.failed.map((entry) => entry.path));
     } catch {
       setSearchError(t('common.networkError'));
@@ -548,79 +557,23 @@ export function LinkManagerPanel({
   }
 
   async function deleteLink(record: LinkRecord) {
-    if (!target) return;
-
-    const confirmed = window.confirm(
-      t('manager.deleteConfirm', {
-        environment: target.name,
-        path: record.path,
-      }),
-    );
-    if (!confirmed) return;
-
-    setDeletingPath(record.path);
-    setSearchError('');
-    setNotice('');
-
-    try {
-      const response = await fetch(
-        `/api/links/${encodeLinkPath(record.path)}?targetId=${encodeURIComponent(target.id)}`,
-        { method: 'DELETE' },
-      );
-      const payload: unknown = await response.json().catch(() => ({}));
-
-      if (!response.ok) {
-        setSearchError(translateApiError(payload, t, 'manager.deleteFailed'));
-        return;
-      }
-
-      if (!isDeleteLinkResponse(payload)) {
-        setSearchError(t('manager.invalidDelete'));
-        return;
-      }
-
-      const result = payload;
-      setSelectedRecord((current) => (
-        current?.path === result.path ? null : current
-      ));
-      setItems((current) => current.filter((item) => item.path !== result.path));
-      setNotice(t('manager.deletedNotice', { path: result.path }));
-
-      const currentCursor = cursorStack[cursorStack.length - 1] ?? null;
-      const refreshed = await requestPage(currentCursor, activePrefix);
-
-      if (refreshed?.items.length === 0 && cursorStack.length > 1) {
-        const previousCursor = cursorStack[cursorStack.length - 2] ?? null;
-        const previousPage = await requestPage(previousCursor, activePrefix);
-        if (previousPage) setCursorStack((current) => current.slice(0, -1));
-      }
-    } catch {
-      setSearchError(t('common.networkError'));
-    } finally {
-      setDeletingPath('');
-    }
+    setSelectedRecord(null);
+    await runBatchAction('delete', [record.path]);
   }
 
   const pageNumber = cursorStack.length;
-  const emptyMessage = activePrefix
+  const emptyMessage = view === 'trash' ? t('life.trashEmpty') : activePrefix
     ? t('manager.emptyPrefix', { prefix: activePrefix })
     : t('manager.emptyAll');
 
   return (
     <div className="manager-workspace">
       <section className="panel lookup-panel" aria-labelledby="lookup-title">
-        <div className="panel-heading panel-heading-row">
-          <div>
-            <p className="eyebrow">{t('manager.eyebrow')}</p>
-            <h2 id="lookup-title">{t('manager.title')}</h2>
-            <p>{t('manager.description')}</p>
-          </div>
-          <span className="environment-pill">{target?.name ?? t('common.noEnvironment')}</span>
-        </div>
+        <h2 id="lookup-title" className="sr-only">{t('manager.title')}</h2>
 
         <form className="lookup-form" onSubmit={handleFilterSubmit}>
           <div className="form-field">
-            <label htmlFor="lookup-path">{t('manager.pathOrPrefix')}</label>
+            <label className="sr-only" htmlFor="lookup-path">{t('manager.pathOrPrefix')}</label>
             <div className="manager-search-row">
               <input
                 id="lookup-path"
@@ -672,11 +625,10 @@ export function LinkManagerPanel({
         >
           <header className="link-browser-header">
             <div>
-              <p className="eyebrow">{t('manager.listEyebrow')}</p>
               <h2 id="link-list-title">
                 {activePrefix
                   ? t('manager.prefixTitle', { prefix: activePrefix })
-                  : t('manager.allLinks')}
+                  : view === 'trash' ? t('life.trash') : t('manager.allLinks')}
               </h2>
               <p role="status">{t('manager.pageSummary', {
                 page: pageNumber,
@@ -725,6 +677,7 @@ export function LinkManagerPanel({
                   className="button button-secondary"
                   type="button"
                   disabled={batchAction !== null || listLoading}
+                  hidden={view === 'trash'}
                   onClick={() => void runBatchAction('enable')}
                 >
                   {batchAction === 'enable' ? t('manager.enabling') : t('manager.bulkEnable')}
@@ -733,6 +686,7 @@ export function LinkManagerPanel({
                   className="button button-secondary"
                   type="button"
                   disabled={batchAction !== null || listLoading}
+                  hidden={view === 'trash'}
                   onClick={() => void runBatchAction('disable')}
                 >
                   {batchAction === 'disable' ? t('manager.disabling') : t('manager.bulkDisable')}
@@ -741,18 +695,21 @@ export function LinkManagerPanel({
                   className="button button-danger"
                   type="button"
                   disabled={batchAction !== null || listLoading}
+                  hidden={view === 'trash'}
                   onClick={() => void runBatchAction('delete')}
                 >
                   {batchAction === 'delete' ? t('manager.deleting') : t('manager.bulkDelete')}
                 </button>
+                {view === 'trash' ? <button className="button button-primary" type="button" disabled={batchAction !== null || listLoading} onClick={() => void runBatchAction('restore')}>{t('life.restore')}</button> : null}
               </div>
             </div>
           ) : null}
 
           {pendingDeletePaths.length > 0 ? (
-            <div className="batch-confirmation" role="alert">
+            <div className="batch-confirmation" role="alert" ref={confirmationRef} tabIndex={-1}>
               <div>
                 <strong>{t('manager.batchDeleteReviewTitle')}</strong>
+                <p>{target?.name}</p>
                 <p>{t('manager.batchDeleteConfirm', { count: pendingDeletePaths.length })}</p>
                 <ul className="batch-path-list">
                   {pendingDeletePaths.slice(0, 5).map((path) => (
@@ -895,25 +852,22 @@ export function LinkManagerPanel({
           </nav>
         </section>
 
-        <div
-          ref={detailsRef}
-          className={selectedRecord
-            ? 'manager-detail-shell has-record'
-            : 'manager-detail-shell'}
-        >
-          <LinkDetailsPanel
-            key={`${target?.id ?? 'none'}:${selectedRecord?.path ?? 'empty'}:${selectedRecord?.updatedAt ?? ''}`}
-            target={target}
-            record={selectedRecord}
-            deleting={deletingPath === selectedRecord?.path}
-            updating={updatingPath === selectedRecord?.path}
-            copied={copiedPath === selectedRecord?.path}
-            onCopy={(record) => void copyShortUrl(record)}
-            onClose={() => setSelectedRecord(null)}
-            onDelete={(record) => void deleteLink(record)}
-            onUpdate={updateLink}
-          />
-        </div>
+        <DetailsDrawer open={Boolean(selectedRecord)} onClose={() => setSelectedRecord(null)}>
+          {selectedRecord ? (
+            <LinkDetailsPanel
+              key={`${target?.id ?? 'none'}:${selectedRecord?.path ?? 'empty'}:${selectedRecord?.updatedAt ?? ''}`}
+              target={target}
+              record={selectedRecord}
+              deleting={batchAction !== null}
+              updating={updatingPath === selectedRecord?.path}
+              copied={copiedPath === selectedRecord?.path}
+              onCopy={(record) => void copyShortUrl(record)}
+              onDelete={(record) => void deleteLink(record)}
+              onUpdate={updateLink}
+              updateError={searchError}
+            />
+          ) : null}
+        </DetailsDrawer>
       </div>
     </div>
   );

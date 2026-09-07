@@ -1,3 +1,4 @@
+import { scheduleFields, validateSchedule, schedulePurgeAt } from "../lifecycle.mjs";
 import { decodeCursor, encodeCursor } from "../cursor.mjs";
 import { HttpError } from "../errors.mjs";
 import { json, parseJsonBody } from "../http.mjs";
@@ -42,6 +43,12 @@ export async function createLink(event) {
     subdomainLength
   });
 
+  Object.assign(item, scheduleFields(body));
+  validateSchedule(item);
+  for (const key of ['startsAt', 'expiresAt']) if (item[key] === null) delete item[key];
+  const purgeAt = schedulePurgeAt(item);
+  if (purgeAt !== null) item.purgeAt = purgeAt;
+  if (item.expiresAt && Date.parse(item.expiresAt) <= Date.now()) throw new HttpError(400, 'INVALID_SCHEDULE', 'New links must expire in the future');
   await createLinkRecord(item);
   return json(201, toPublicItem(item));
 }
@@ -50,12 +57,15 @@ export async function listLinks(event) {
   const query = event?.queryStringParameters ?? {};
   const limit = parseLimit(query.limit);
   const prefix = parsePrefix(query.prefix);
-  const exclusiveStartKey = decodeCursor(query.cursor, prefix);
-  const response = await listLinkRecords({ limit, prefix, exclusiveStartKey });
+  const view = query.view ?? 'links';
+  if (!['links', 'trash'].includes(view)) throw new HttpError(400, 'INVALID_VIEW', 'Invalid list view');
+  const scope = view === 'links' ? prefix : 'trash:' + prefix;
+  const exclusiveStartKey = decodeCursor(query.cursor, scope);
+  const response = await listLinkRecords({ limit, prefix, exclusiveStartKey, view });
 
   return json(200, {
     items: (response.Items ?? []).map(toPublicItem),
-    nextCursor: encodeCursor(response.LastEvaluatedKey, prefix)
+    nextCursor: encodeCursor(response.LastEvaluatedKey, scope)
   });
 }
 

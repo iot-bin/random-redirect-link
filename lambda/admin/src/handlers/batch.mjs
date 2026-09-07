@@ -3,6 +3,7 @@ import { json } from "../http.mjs";
 import { toPublicItem } from "../link-record.mjs";
 import {
   deleteLinkRecordIfExists,
+  restoreLinkRecord,
   updateLinkEnabledIfExists
 } from "../repository.mjs";
 import { parseBatchRequest } from "../validation.mjs";
@@ -12,6 +13,7 @@ async function mutateBatchItem(
   path,
   {
     deleteLink = deleteLinkRecordIfExists,
+    restoreLink = restoreLinkRecord,
     updateLinkEnabled = updateLinkEnabledIfExists
   } = {}
 ) {
@@ -21,12 +23,13 @@ async function mutateBatchItem(
       return { ok: true, value: { path } };
     }
 
-    const item = await updateLinkEnabled(path, action === "enable");
+    const item = action === "restore" ? await restoreLink(path) : await updateLinkEnabled(path, action === "enable");
     return {
       ok: true,
       value: { path, item: toPublicItem(item) }
     };
   } catch (error) {
+    if (error?.statusCode >= 400 && error?.statusCode < 500) return { ok: false, value: { path, code: error.code, error: error.message } };
     if (error?.name === "ConditionalCheckFailedException") {
       return {
         ok: false,

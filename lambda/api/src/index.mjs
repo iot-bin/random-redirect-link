@@ -11,6 +11,7 @@ export function createHandler({
   getLink = getLinkByPath,
   isConfigured = hasRequiredConfig,
   resolve = resolveRedirect,
+  now = Date.now,
   logger = console
 } = {}) {
   return async (event, context) => {
@@ -36,7 +37,11 @@ export function createHandler({
     try {
       const item = await getLink(path);
 
-      if (!item || item.enabled === false) {
+      const timestamp = now();
+      const invalidTime = item && ['startsAt', 'expiresAt'].some(key => item[key] != null && !Number.isFinite(Date.parse(item[key])));
+      if (!item || item.enabled === false || item.deletedAt || invalidTime
+        || (item.startsAt && timestamp < Date.parse(item.startsAt))
+        || (item.expiresAt && timestamp >= Date.parse(item.expiresAt))) {
         return text(404, "Not Found");
       }
 

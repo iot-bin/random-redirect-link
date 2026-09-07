@@ -5,6 +5,7 @@ import {
   MAX_LIMIT,
   MAX_TARGET_URL_LENGTH
 } from "./config.mjs";
+import { scheduleFields } from "./lifecycle.mjs";
 import { HttpError } from "./errors.mjs";
 import { getPathError, normalizePath } from "./link-path.mjs";
 import { parseJsonBody } from "./http.mjs";
@@ -123,7 +124,11 @@ export function parseRandomSubdomain(value) {
 }
 
 export function getUpdateFields(body) {
-  const fields = {};
+  const fields = scheduleFields(body);
+  if (Object.hasOwn(body, 'restore')) {
+    if (body.restore !== true) throw new HttpError(400, 'INVALID_SCHEDULE', 'restore must be true');
+    fields.restore = true;
+  }
 
   if (Object.prototype.hasOwnProperty.call(body, "enabled")) {
     if (typeof body.enabled !== "boolean") {

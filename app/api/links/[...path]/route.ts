@@ -58,7 +58,9 @@ export async function PATCH(request: Request, context: RouteContext) {
 
   const values = body as Record<string, unknown>;
   const targetId = typeof values.targetId === 'string' ? values.targetId.trim() : '';
-  const update: Record<string, unknown> = {};
+  const update: Record<string, unknown> = Object.fromEntries(
+    ['startsAt', 'expiresAt', 'restore'].filter(key => key in values).map(key => [key, values[key]]),
+  );
 
   if ('enabled' in values) {
     if (typeof values.enabled !== 'boolean') {

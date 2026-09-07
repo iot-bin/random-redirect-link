@@ -7,6 +7,10 @@ export interface PublicApiTarget {
 export interface LinkRecord {
   path: string;
   enabled?: boolean;
+  startsAt?: string;
+  expiresAt?: string;
+  deletedAt?: string;
+  purgeAt?: number;
   createdAt?: string;
   updatedAt?: string;
   statusCode?: number;
@@ -23,6 +27,9 @@ export interface LinkListResponse {
 }
 
 export interface LinkUpdateInput {
+  startsAt?: string | null;
+  expiresAt?: string | null;
+  restore?: true;
   enabled?: boolean;
   targetUrl?: string;
   statusCode?: 301 | 302;
@@ -30,7 +37,7 @@ export interface LinkUpdateInput {
   expectedUpdatedAt?: string;
 }
 
-export type LinkBatchAction = 'enable' | 'disable' | 'delete';
+export type LinkBatchAction = 'enable' | 'disable' | 'delete' | 'restore';
 
 export interface LinkBatchSuccess {
   path: string;

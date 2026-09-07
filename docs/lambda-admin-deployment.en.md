@@ -118,8 +118,7 @@ The execution role needs CloudWatch Logs permissions, normally through
         "dynamodb:GetItem",
         "dynamodb:PutItem",
         "dynamodb:Query",
-        "dynamodb:UpdateItem",
-        "dynamodb:DeleteItem"
+        "dynamodb:UpdateItem"
       ],
       "Resource": [
         "arn:aws:dynamodb:ap-southeast-1:ACCOUNT_ID:table/random-redirect-link",
@@ -268,3 +267,7 @@ If the deployment fails, upload the backup ZIP from section 6 with
 `aws lambda update-function-code`, then wait for `function-updated` again.
 Code rollback does not revert environment variables, IAM, or API Gateway routes;
 restore those separately if they were changed.
+
+## Lifecycle rollout
+
+Deploy the public Lambda lifecycle checks before deploying this admin version. DELETE now soft-deletes; restore uses the existing PATCH route (restore:true) or batch action restore. After application verification, enable DynamoDB TTL on the numeric purgeAt attribute. Do not use expiresAt as the TTL field. See [lifecycle behavior](../README.md#recycle-bin-and-link-schedules).

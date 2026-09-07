@@ -3,6 +3,7 @@
 import {
   useEffect,
   useId,
+  useLayoutEffect,
   useRef,
   useState,
 } from 'react';
@@ -40,6 +41,7 @@ export function DropdownSelect<Value extends string>({
   const listboxId = `${id ?? generatedId}-listbox`;
   const rootRef = useRef<HTMLDivElement>(null);
   const triggerRef = useRef<HTMLButtonElement>(null);
+  const menuRef = useRef<HTMLDivElement>(null);
   const optionRefs = useRef<Array<HTMLButtonElement | null>>([]);
   const [open, setOpen] = useState(false);
   const [activeIndex, setActiveIndex] = useState(0);
@@ -57,9 +59,66 @@ export function DropdownSelect<Value extends string>({
     return () => document.removeEventListener('pointerdown', handlePointerDown);
   }, [open]);
 
+  useLayoutEffect(() => {
+    if (!open) return;
+    const menu = menuRef.current;
+    const trigger = triggerRef.current;
+    const root = rootRef.current;
+    if (!menu || !trigger || !root) return;
+
+    function positionMenu() {
+      if (!menu || !trigger || !root) return;
+      const rect = trigger.getBoundingClientRect();
+      const rootRect = root.getBoundingClientRect();
+      const viewport = window.visualViewport;
+      const viewportTop = viewport?.offsetTop ?? 0;
+      const viewportLeft = viewport?.offsetLeft ?? 0;
+      const viewportBottom = viewportTop + (viewport?.height ?? window.innerHeight);
+      const viewportRight = viewportLeft + (viewport?.width ?? document.documentElement.clientWidth);
+      const margin = 8;
+      const gap = 6;
+      const below = Math.max(0, viewportBottom - rect.bottom - gap - margin);
+      const above = Math.max(0, rect.top - viewportTop - gap - margin);
+      const width = Math.min(Math.max(rect.width, 220), viewportRight - viewportLeft - margin * 2);
+      menu.style.width = `${Math.max(0, width)}px`;
+      const desiredHeight = Math.min(menu.scrollHeight + 2, 280);
+      const upwards = below < desiredHeight && above > below;
+      menu.dataset.placement = upwards ? 'top' : 'bottom';
+      menu.style.maxHeight = `${Math.min(280, upwards ? above : below)}px`;
+      menu.style.top = upwards ? 'auto' : `${rect.bottom - rootRect.top + gap}px`;
+      menu.style.bottom = upwards ? `${rootRect.bottom - rect.top + gap}px` : 'auto';
+      const left = Math.max(viewportLeft + margin, Math.min(rect.right - width, viewportRight - margin - width));
+      menu.style.left = `${left - rootRect.left}px`;
+      menu.style.right = 'auto';
+    }
+
+    positionMenu();
+    const observer = new ResizeObserver(positionMenu);
+    observer.observe(trigger);
+    window.addEventListener('resize', positionMenu);
+    window.addEventListener('scroll', positionMenu, true);
+    window.visualViewport?.addEventListener('resize', positionMenu);
+    window.visualViewport?.addEventListener('scroll', positionMenu);
+    return () => {
+      observer.disconnect();
+      window.removeEventListener('resize', positionMenu);
+      window.removeEventListener('scroll', positionMenu, true);
+      window.visualViewport?.removeEventListener('resize', positionMenu);
+      window.visualViewport?.removeEventListener('scroll', positionMenu);
+    };
+  }, [open, options]);
+
   useEffect(() => {
     if (!open) return;
-    optionRefs.current[activeIndex]?.focus();
+    const option = optionRefs.current[activeIndex];
+    const menu = menuRef.current;
+    option?.focus({ preventScroll: true });
+    if (option && menu) {
+      const optionRect = option.getBoundingClientRect();
+      const menuRect = menu.getBoundingClientRect();
+      if (optionRect.top < menuRect.top) menu.scrollTop -= menuRect.top - optionRect.top;
+      else if (optionRect.bottom > menuRect.bottom) menu.scrollTop += optionRect.bottom - menuRect.bottom;
+    }
   }, [activeIndex, open]);
 
   function openMenu(index = selectedIndex) {
@@ -133,7 +192,7 @@ export function DropdownSelect<Value extends string>({
       </button>
 
       {open ? (
-        <div className="dropdown-menu" id={listboxId} role="listbox" aria-label={ariaLabel}>
+        <div ref={menuRef} className="dropdown-menu" id={listboxId} role="listbox" aria-label={ariaLabel}>
           {options.map((option, index) => (
             <button
               key={option.value}

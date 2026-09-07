@@ -59,6 +59,9 @@ export function GET(request: Request) {
   const upstreamQuery = new URLSearchParams({ limit: String(limit) });
   if (cursor) upstreamQuery.set('cursor', cursor);
   if (prefix) upstreamQuery.set('prefix', prefix);
+  const view = searchParams.get('view') ?? 'links';
+  if (!['links', 'trash'].includes(view)) return errorResponse('Invalid view', 'INVALID_VIEW');
+  upstreamQuery.set('view', view);
 
   return forwardAdminRequest({
     targetId,
@@ -117,6 +120,7 @@ export async function POST(request: Request) {
       path,
       targetUrl,
       randomSubdomain,
+      ...Object.fromEntries(['startsAt', 'expiresAt'].filter(key => key in values).map(key => [key, values[key]])),
       ...(randomSubdomain ? { subdomainLength } : {}),
     },
   });

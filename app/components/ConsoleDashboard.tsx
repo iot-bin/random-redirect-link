@@ -12,6 +12,7 @@ import {
   MenuIcon,
   SearchIcon,
   SettingsIcon,
+  TrashIcon,
 } from '@/app/components/Icons';
 import { LinkManagerPanel } from '@/app/components/LinkManagerPanel';
 import { SettingsPanel } from '@/app/components/SettingsPanel';
@@ -20,7 +21,7 @@ import { useConsolePreferences } from '@/app/components/useConsolePreferences';
 import { useLocale } from '@/lib/i18n/LocaleProvider';
 import type { PublicApiTarget } from '@/lib/link-types';
 
-type ConsoleSection = 'create' | 'manage' | 'settings';
+type ConsoleSection = 'create' | 'manage' | 'trash' | 'settings';
 
 interface ConsoleDashboardProps {
   targets: PublicApiTarget[];
@@ -40,6 +41,7 @@ export function ConsoleDashboard({
 
   const [section, setSection] = useState<ConsoleSection>('create');
   const [managerInitialPath, setManagerInitialPath] = useState('');
+  const [sidebarCollapsed, setSidebarCollapsed] = useState(false);
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
   const [logoutPending, setLogoutPending] = useState(false);
   const [logoutError, setLogoutError] = useState('');
@@ -126,6 +128,7 @@ export function ConsoleDashboard({
       title: t('dashboard.manage'),
       description: t('dashboard.manageDescription'),
     },
+    trash: { title: t('life.trash'), description: t('life.trashHelp') },
     settings: {
       title: t('dashboard.settings'),
       description: t('dashboard.settingsDescription'),
@@ -133,7 +136,7 @@ export function ConsoleDashboard({
   }[section];
 
   return (
-    <div className="console-shell">
+    <div className={sidebarCollapsed ? "console-shell sidebar-collapsed" : "console-shell"}>
       <button
         className={mobileMenuOpen ? 'sidebar-backdrop is-open' : 'sidebar-backdrop'}
         type="button"
@@ -154,6 +157,7 @@ export function ConsoleDashboard({
           <button
             className={section === 'create' ? 'nav-item is-active' : 'nav-item'}
             type="button"
+            title={t('dashboard.create')}
             aria-current={section === 'create' ? 'page' : undefined}
             onClick={() => navigate('create')}
           >
@@ -163,15 +167,18 @@ export function ConsoleDashboard({
           <button
             className={section === 'manage' ? 'nav-item is-active' : 'nav-item'}
             type="button"
+            title={t('dashboard.manage')}
             aria-current={section === 'manage' ? 'page' : undefined}
             onClick={() => navigate('manage')}
           >
             <SearchIcon />
             <span>{t('dashboard.manage')}</span>
           </button>
+          <button title={t('life.trash')} className={section === 'trash' ? 'nav-item is-active' : 'nav-item'} type="button" aria-current={section === 'trash' ? 'page' : undefined} onClick={() => navigate('trash')}><TrashIcon /><span>{t('life.trash')}</span></button>
           <button
             className={section === 'settings' ? 'nav-item is-active' : 'nav-item'}
             type="button"
+            title={t('dashboard.settings')}
             aria-current={section === 'settings' ? 'page' : undefined}
             onClick={() => navigate('settings')}
           >
@@ -230,9 +237,20 @@ export function ConsoleDashboard({
           <ThemeToggle />
         </header>
 
+        <div className="console-topbar">
+          <div className="console-context">
+            <button className="icon-button sidebar-collapse" type="button" onClick={() => setSidebarCollapsed(!sidebarCollapsed)} aria-label={t(sidebarCollapsed ? 'dashboard.expandSidebar' : 'dashboard.collapseSidebar')} aria-expanded={!sidebarCollapsed}>
+              <MenuIcon />
+            </button>
+            <span>{selectedTarget?.name ?? t('common.noEnvironment')}</span>
+            <ChevronRightIcon />
+            <strong>{copy.title}</strong>
+          </div>
+          {section !== 'create' ? <button className="button button-primary" type="button" onClick={() => navigate('create')}><CreateIcon />{t('dashboard.create')}</button> : null}
+        </div>
+
         <div className="page-header">
           <div>
-            <p className="eyebrow">{t('dashboard.eyebrow')}</p>
             <h1>{copy.title}</h1>
             <p>{copy.description}</p>
           </div>
@@ -267,11 +285,12 @@ export function ConsoleDashboard({
             target={selectedTarget}
             onManage={manageCreatedLink}
           />
-        ) : section === 'manage' ? (
+        ) : section === 'manage' || section === 'trash' ? (
           <LinkManagerPanel
-            key={`${selectedTargetId}:${managerInitialPath}:${pageSize}`}
+            key={`${selectedTargetId}:${section}:${managerInitialPath}:${pageSize}`}
+            view={section === 'trash' ? 'trash' : 'links'}
             target={selectedTarget}
-            initialPath={managerInitialPath}
+            initialPath={section === 'trash' ? '' : managerInitialPath}
             pageSize={pageSize}
           />
         ) : (

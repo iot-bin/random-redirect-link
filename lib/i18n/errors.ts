@@ -22,6 +22,11 @@ const validationMessages: Record<string, MessageKey> = {
 };
 
 const apiMessages: Record<string, MessageKey> = {
+  INVALID_SCHEDULE: 'life.invalid',
+  RETENTION_ENDED: 'life.retentionEnded',
+  LINK_DELETED: 'life.linkDeleted',
+  LINK_NOT_DELETED: 'life.notDeleted',
+  RESTORE_EXPIRED: 'life.restoreExpired',
   PASSWORD_NOT_CONFIGURED: 'api.passwordNotConfigured',
   INVALID_REQUEST: 'api.invalidRequest',
   PASSWORD_REQUIRED: 'login.passwordRequired',
