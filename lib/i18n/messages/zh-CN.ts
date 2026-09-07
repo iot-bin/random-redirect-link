@@ -51,6 +51,8 @@ export const zhCN = {
   'login.submitting': '登录中...',
   'login.submit': '登录',
   'login.footer': '短链管理控制台 — 安全访问',
+  'dashboard.collapseSidebar': '收起导航',
+  'dashboard.expandSidebar': '展开导航',
   'dashboard.closeMenu': '关闭导航菜单',
   'dashboard.openMenu': '打开导航菜单',
   'dashboard.brand': '短链控制台',

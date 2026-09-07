@@ -53,6 +53,8 @@ export const en = {
   'login.submitting': 'Signing in...',
   'login.submit': 'Sign in',
   'login.footer': 'Short Link Console — Secure access',
+  'dashboard.collapseSidebar': 'Collapse sidebar',
+  'dashboard.expandSidebar': 'Expand sidebar',
   'dashboard.closeMenu': 'Close navigation menu',
   'dashboard.openMenu': 'Open navigation menu',
   'dashboard.brand': 'Short Link Console',

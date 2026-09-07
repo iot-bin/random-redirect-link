@@ -8,6 +8,7 @@ import {
   RefreshIcon,
   SearchIcon,
 } from '@/app/components/Icons';
+import { DetailsDrawer } from '@/app/components/DetailsDrawer';
 import { LinkDetailsPanel } from '@/app/components/LinkDetailsPanel';
 import { LinkList } from '@/app/components/LinkList';
 import {
@@ -161,7 +162,6 @@ export function LinkManagerPanel({
   const [notice, setNotice] = useState('');
   const [copiedPath, setCopiedPath] = useState('');
   const copyTimerRef = useRef<number | null>(null);
-  const detailsRef = useRef<HTMLDivElement>(null);
   const confirmationRef = useRef<HTMLDivElement>(null);
   useEffect(() => {
     if (!pendingDeletePaths.length) return;
@@ -176,11 +176,6 @@ export function LinkManagerPanel({
 
   const showRecord = useCallback((record: LinkRecord) => {
     setSelectedRecord(record);
-    if (window.matchMedia('(max-width: 1320px)').matches) {
-      window.requestAnimationFrame(() => {
-        detailsRef.current?.scrollIntoView({ behavior: 'smooth', block: 'start' });
-      });
-    }
   }, []);
 
   const requestPage = useCallback(
@@ -562,6 +557,7 @@ export function LinkManagerPanel({
   }
 
   async function deleteLink(record: LinkRecord) {
+    setSelectedRecord(null);
     await runBatchAction('delete', [record.path]);
   }
 
@@ -573,18 +569,11 @@ export function LinkManagerPanel({
   return (
     <div className="manager-workspace">
       <section className="panel lookup-panel" aria-labelledby="lookup-title">
-        <div className="panel-heading panel-heading-row">
-          <div>
-            <p className="eyebrow">{t('manager.eyebrow')}</p>
-            <h2 id="lookup-title">{view === 'trash' ? t('life.trash') : t('manager.title')}</h2>
-            <p>{view === 'trash' ? t('life.trashHelp') : t('manager.description')}</p>
-          </div>
-          <span className="environment-pill">{target?.name ?? t('common.noEnvironment')}</span>
-        </div>
+        <h2 id="lookup-title" className="sr-only">{t('manager.title')}</h2>
 
         <form className="lookup-form" onSubmit={handleFilterSubmit}>
           <div className="form-field">
-            <label htmlFor="lookup-path">{t('manager.pathOrPrefix')}</label>
+            <label className="sr-only" htmlFor="lookup-path">{t('manager.pathOrPrefix')}</label>
             <div className="manager-search-row">
               <input
                 id="lookup-path"
@@ -636,7 +625,6 @@ export function LinkManagerPanel({
         >
           <header className="link-browser-header">
             <div>
-              <p className="eyebrow">{t('manager.listEyebrow')}</p>
               <h2 id="link-list-title">
                 {activePrefix
                   ? t('manager.prefixTitle', { prefix: activePrefix })
@@ -864,26 +852,22 @@ export function LinkManagerPanel({
           </nav>
         </section>
 
-        <div
-          ref={detailsRef}
-          className={selectedRecord
-            ? 'manager-detail-shell has-record'
-            : 'manager-detail-shell'}
-        >
-          <LinkDetailsPanel
-            key={`${target?.id ?? 'none'}:${selectedRecord?.path ?? 'empty'}:${selectedRecord?.updatedAt ?? ''}`}
-            target={target}
-            record={selectedRecord}
-            deleting={batchAction !== null}
-            updating={updatingPath === selectedRecord?.path}
-            copied={copiedPath === selectedRecord?.path}
-            onCopy={(record) => void copyShortUrl(record)}
-            onClose={() => setSelectedRecord(null)}
-            onDelete={(record) => void deleteLink(record)}
-            onUpdate={updateLink}
-            updateError={searchError}
-          />
-        </div>
+        <DetailsDrawer open={Boolean(selectedRecord)} onClose={() => setSelectedRecord(null)}>
+          {selectedRecord ? (
+            <LinkDetailsPanel
+              key={`${target?.id ?? 'none'}:${selectedRecord?.path ?? 'empty'}:${selectedRecord?.updatedAt ?? ''}`}
+              target={target}
+              record={selectedRecord}
+              deleting={batchAction !== null}
+              updating={updatingPath === selectedRecord?.path}
+              copied={copiedPath === selectedRecord?.path}
+              onCopy={(record) => void copyShortUrl(record)}
+              onDelete={(record) => void deleteLink(record)}
+              onUpdate={updateLink}
+              updateError={searchError}
+            />
+          ) : null}
+        </DetailsDrawer>
       </div>
     </div>
   );

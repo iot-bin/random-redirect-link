@@ -288,11 +288,11 @@ export function LinkDetailsPanel({
       <LifecycleDates record={record} />
       {updateError ? <div className="alert alert-error" role="alert">{updateError}</div> : null}
       <dl className="detail-grid">
-        <div>
+        <div className="detail-address">
           <dt>{t('details.shortUrl')}</dt>
           <dd><a href={shortUrl} target="_blank" rel="noreferrer">{shortUrl}</a></dd>
         </div>
-        <div>
+        <div className="detail-address">
           <dt>{t('details.targetUrl')}</dt>
           <dd className="break-all">{getLinkTarget(record) || '—'}</dd>
         </div>

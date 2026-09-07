@@ -41,6 +41,7 @@ export function ConsoleDashboard({
 
   const [section, setSection] = useState<ConsoleSection>('create');
   const [managerInitialPath, setManagerInitialPath] = useState('');
+  const [sidebarCollapsed, setSidebarCollapsed] = useState(false);
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
   const [logoutPending, setLogoutPending] = useState(false);
   const [logoutError, setLogoutError] = useState('');
@@ -135,7 +136,7 @@ export function ConsoleDashboard({
   }[section];
 
   return (
-    <div className="console-shell">
+    <div className={sidebarCollapsed ? "console-shell sidebar-collapsed" : "console-shell"}>
       <button
         className={mobileMenuOpen ? 'sidebar-backdrop is-open' : 'sidebar-backdrop'}
         type="button"
@@ -156,6 +157,7 @@ export function ConsoleDashboard({
           <button
             className={section === 'create' ? 'nav-item is-active' : 'nav-item'}
             type="button"
+            title={t('dashboard.create')}
             aria-current={section === 'create' ? 'page' : undefined}
             onClick={() => navigate('create')}
           >
@@ -165,16 +167,18 @@ export function ConsoleDashboard({
           <button
             className={section === 'manage' ? 'nav-item is-active' : 'nav-item'}
             type="button"
+            title={t('dashboard.manage')}
             aria-current={section === 'manage' ? 'page' : undefined}
             onClick={() => navigate('manage')}
           >
             <SearchIcon />
             <span>{t('dashboard.manage')}</span>
           </button>
-          <button className={section === 'trash' ? 'nav-item is-active' : 'nav-item'} type="button" aria-current={section === 'trash' ? 'page' : undefined} onClick={() => navigate('trash')}><TrashIcon /><span>{t('life.trash')}</span></button>
+          <button title={t('life.trash')} className={section === 'trash' ? 'nav-item is-active' : 'nav-item'} type="button" aria-current={section === 'trash' ? 'page' : undefined} onClick={() => navigate('trash')}><TrashIcon /><span>{t('life.trash')}</span></button>
           <button
             className={section === 'settings' ? 'nav-item is-active' : 'nav-item'}
             type="button"
+            title={t('dashboard.settings')}
             aria-current={section === 'settings' ? 'page' : undefined}
             onClick={() => navigate('settings')}
           >
@@ -233,9 +237,20 @@ export function ConsoleDashboard({
           <ThemeToggle />
         </header>
 
+        <div className="console-topbar">
+          <div className="console-context">
+            <button className="icon-button sidebar-collapse" type="button" onClick={() => setSidebarCollapsed(!sidebarCollapsed)} aria-label={t(sidebarCollapsed ? 'dashboard.expandSidebar' : 'dashboard.collapseSidebar')} aria-expanded={!sidebarCollapsed}>
+              <MenuIcon />
+            </button>
+            <span>{selectedTarget?.name ?? t('common.noEnvironment')}</span>
+            <ChevronRightIcon />
+            <strong>{copy.title}</strong>
+          </div>
+          {section !== 'create' ? <button className="button button-primary" type="button" onClick={() => navigate('create')}><CreateIcon />{t('dashboard.create')}</button> : null}
+        </div>
+
         <div className="page-header">
           <div>
-            <p className="eyebrow">{t('dashboard.eyebrow')}</p>
             <h1>{copy.title}</h1>
             <p>{copy.description}</p>
           </div>

@@ -53,6 +53,8 @@ export const zhTW = {
   'login.submitting': '登入中...',
   'login.submit': '登入',
   'login.footer': '短連結管理控制台 — 安全存取',
+  'dashboard.collapseSidebar': '收起導覽',
+  'dashboard.expandSidebar': '展開導覽',
   'dashboard.closeMenu': '關閉導覽選單',
   'dashboard.openMenu': '開啟導覽選單',
   'dashboard.brand': '短連結控制台',
