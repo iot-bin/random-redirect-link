@@ -119,7 +119,6 @@ export function LinkList({
   const { locale, t } = useLocale();
   const dateFormatter = useMemo(() => new Intl.DateTimeFormat(locale, {
     timeZone: 'Asia/Singapore',
-    timeZoneName: 'short',
     year: 'numeric',
     month: '2-digit',
     day: '2-digit',
@@ -174,7 +173,7 @@ export function LinkList({
               <th scope="col">{t('list.status')}</th>
               <th scope="col">{t('list.path')}</th>
               <th scope="col">{t('list.target')}</th>
-              <th scope="col">{t('list.updatedAt')}</th>
+              <th scope="col">{t('list.updatedAt')} <span className="table-timezone">UTC+8</span></th>
               <th scope="col"><span className="sr-only">{t('common.actions')}</span></th>
             </tr>
           </thead>
@@ -204,7 +203,6 @@ export function LinkList({
                     >
                       {record.path}
                     </button>
-                    <span className="table-secondary" title={shortUrl}>{shortUrl}</span>
                     <LifecycleDates record={record} />
                   </td>
                   <td>
@@ -212,7 +210,7 @@ export function LinkList({
                       {getLinkTarget(record) || '—'}
                     </span>
                   </td>
-                  <td className="table-date">{formatDate(record.updatedAt ?? record.createdAt)}</td>
+                  <td className="table-date" title={record.updatedAt ?? record.createdAt}>{formatDate(record.updatedAt ?? record.createdAt)}</td>
                   <td>
                     <LinkActions
                       record={record}
