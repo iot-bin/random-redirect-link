@@ -123,6 +123,7 @@ export const en = {
   'create.randomModeValue': 'Random subdomain ({length} characters)',
   'create.fixedModeValue': 'Fixed target URL',
   'create.responseStatus': 'Response status',
+  'create.linkStatus': 'Link status',
   'create.copied': 'Copied',
   'create.copy': 'Copy link',
   'create.open': 'Open link',

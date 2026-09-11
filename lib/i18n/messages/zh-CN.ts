@@ -121,6 +121,7 @@ export const zhCN = {
   'create.randomModeValue': '随机二级域名（{length} 位）',
   'create.fixedModeValue': '固定目标地址',
   'create.responseStatus': '响应状态',
+  'create.linkStatus': '链接状态',
   'create.copied': '已复制',
   'create.copy': '复制短链',
   'create.open': '打开短链',

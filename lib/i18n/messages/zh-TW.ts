@@ -123,6 +123,7 @@ export const zhTW = {
   'create.randomModeValue': '隨機子網域（{length} 個字元）',
   'create.fixedModeValue': '固定目標網址',
   'create.responseStatus': '回應狀態',
+  'create.linkStatus': '連結狀態',
   'create.copied': '已複製',
   'create.copy': '複製短連結',
   'create.open': '開啟短連結',

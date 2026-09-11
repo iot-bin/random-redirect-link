@@ -311,10 +311,17 @@ export function CreateLinkPanel({
                 <dt>{t('create.responseStatus')}</dt>
                 <dd>{result.statusCode ?? 302}</dd>
               </div>
+              <div className="result-status-row">
+                <dt>{t('create.linkStatus')}</dt>
+                <dd>
+                  <LifecycleBadge record={result} />
+                  {(result.startsAt || result.expiresAt) ? (
+                    <LifecycleDates record={result} />
+                  ) : null}
+                </dd>
+              </div>
             </dl>
 
-            <LifecycleBadge record={result} />
-            <LifecycleDates record={result} />
             <div className="result-actions">
               <button className="button button-primary" type="button" onClick={copyShortUrl}>
                 <CopyIcon />

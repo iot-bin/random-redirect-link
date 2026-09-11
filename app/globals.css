@@ -1046,6 +1046,14 @@ select:focus-visible {
   margin-top: 20px;
 }
 
+.result-status-row dt {
+  padding-top: 4px;
+}
+
+.result-status-row .lifecycle-dates {
+  margin: 8px 0 0;
+}
+
 .qr-block {
   display: grid;
   justify-items: start;
