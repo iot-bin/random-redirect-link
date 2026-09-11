@@ -259,6 +259,7 @@ export const zhTW = {
   'validation.targetQueryHash': '目前後台暫不支援目標網址中的查詢參數或錨點',
   'validation.targetInvalid': '請輸入有效的目標網址',
   'validation.subdomainLength': '隨機字元長度必須是 3 至 32 的整數',
+  'api.sessionExpired': '登入狀態已失效，請重新登入',
   'api.passwordNotConfigured': '伺服器端尚未設定控制台密碼',
   'api.invalidRequest': '請求內容格式錯誤',
   'api.invalidPassword': '密碼錯誤',

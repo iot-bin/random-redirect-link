@@ -257,6 +257,7 @@ export const zhCN = {
   'validation.targetQueryHash': '当前后台暂不支持目标地址中的查询参数或锚点',
   'validation.targetInvalid': '请输入有效的目标地址',
   'validation.subdomainLength': '随机字符长度必须是 3 至 32 的整数',
+  'api.sessionExpired': '登录状态已失效，请重新登录',
   'api.passwordNotConfigured': '服务端尚未配置控制台密码',
   'api.invalidRequest': '请求内容格式错误',
   'api.invalidPassword': '密码错误',

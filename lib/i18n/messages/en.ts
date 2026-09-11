@@ -259,6 +259,7 @@ export const en = {
   'validation.targetQueryHash': 'The current backend does not support query parameters or URL fragments.',
   'validation.targetInvalid': 'Enter a valid target URL.',
   'validation.subdomainLength': 'The random string length must be an integer from 3 to 32.',
+  'api.sessionExpired': 'Your session has expired. Please sign in again.',
   'api.passwordNotConfigured': 'The console password is not configured on the server.',
   'api.invalidRequest': 'The request body is invalid.',
   'api.invalidPassword': 'Incorrect password.',
