@@ -6,6 +6,15 @@ A Next.js management console and version-controlled AWS Lambda source for
 creating, listing, editing, enabling, disabling, and deleting redirect links.
 The console supports Simplified Chinese, Traditional Chinese, and English.
 
+## Console Preview
+
+Captured from a local demo workspace using `example.com` addresses, without production data.
+The screenshots show the English interface; Simplified and Traditional Chinese are also supported.
+
+![Link management with status badges, path filtering, and pagination](docs/images/en/console-links.png)
+
+[View the full console gallery](docs/console-preview.en.md): link creation, details drawer, recycle bin, settings, dark mode, and mobile layout.
+
 ## Architecture
 
 ```text
@@ -30,7 +39,10 @@ target on the server, attaches its Bearer token, and forwards the request.
 - Create random-subdomain or fixed-target redirect links.
 - Browse links with cursor pagination and path-prefix filtering.
 - View, edit, enable, disable, and delete individual links.
-- Batch enable, disable, or delete up to 50 links.
+- Batch enable, disable, move to the recycle bin, or restore up to 50 links.
+- Schedule activation and expiry; recover soft-deleted links during a seven-day retention period.
+- Inspect links in a details drawer, copy short URLs, and generate QR codes.
+- Use light/dark themes and responsive mobile layouts, with browser-saved preferences.
 - Switch between `zh-CN`, `zh-TW`, and `en` in the console.
 - Select from multiple independently configured API environments.
 - Build either small Lambda packages that use the runtime-provided AWS SDK v3
@@ -83,6 +95,11 @@ Each `API_TARGETS` entry requires:
 - `redirectBaseUrl`: public short-link origin displayed by the console.
 
 Do not use a `NEXT_PUBLIC_` prefix for `adminToken` or any other secret.
+
+Environment labels and `redirectBaseUrl` do not isolate data. For independent records,
+each environment's Admin API and public redirect Lambda must use the same dedicated
+table, with a different table for each environment. Redeploy the console after
+changing `API_TARGETS` in the hosting platform.
 
 ## Local Development
 
@@ -145,6 +162,16 @@ smoke tests, logs, and rollback. Building a package does not deploy it.
 - Keep deployment backups outside Git and verify the function state before and
   after each code update.
 
+## Recycle bin and link schedules
+
+Links accept optional ISO 8601 startsAt/expiresAt timestamps with an explicit timezone. Null clears a timestamp on PATCH; an omitted field is unchanged. The console displays Singapore time (UTC+8). GET and HEAD check deletion, enabled state and the current time on every request. Existing links without these fields remain compatible.
+
+DELETE and batch delete now soft-delete links for 7 days; repeating deletion does not extend retention. GET /links?view=trash lists deleted links (default view=links excludes them). PATCH /links/{path} with restore:true restores a link, optionally including revised schedule fields. Batch action restore supports up to 50 paths. Restoration preserves enabled state; an elapsed expiry must be extended or cleared. Recovery/renewal is refused at the retention deadline. Paths remain reserved until physical deletion.
+
+DynamoDB TTL uses numeric Unix seconds in purgeAt, never expiresAt. Normal expiry schedules cleanup 7 days later; manual deletion schedules cleanup 7 days after deletion. TTL deletion is asynchronous. List filtering preserves pagination cursors; GSI results are eventually consistent. Conditional updates protect concurrent mutations; direct item reads are strongly consistent.
+
+Deployment order: deploy the public Lambda with lifecycle checks first, then the admin Lambda and console; enable TTL on purgeAt last after verification. The SAM template declares this TTL field for managed stacks. Configure and verify TTL separately for manually managed resources. Table replacements require a migration plan with backups, data verification, and a controlled cutover. No new API Gateway route is needed: restore uses the existing PATCH and batch routes.
+
 ## Contributing and Security
 
 - See [CONTRIBUTING.md](CONTRIBUTING.md) for local setup, validation, and pull
@@ -154,13 +181,3 @@ smoke tests, logs, and rollback. Building a package does not deploy it.
 ## License
 
 Licensed under the [Apache License 2.0](LICENSE).
-
-## Recycle bin and link schedules
-
-Links accept optional ISO 8601 startsAt/expiresAt timestamps with an explicit timezone. Null clears a timestamp on PATCH; an omitted field is unchanged. The console displays Singapore time (UTC+8). GET and HEAD check deletion, enabled state and the current time on every request. Existing links without these fields remain compatible.
-
-DELETE and batch delete now soft-delete links for 7 days; repeating deletion does not extend retention. GET /links?view=trash lists deleted links (default view=links excludes them). PATCH /links/{path} with restore:true restores a link, optionally including revised schedule fields. Batch action restore supports up to 50 paths. Restoration preserves enabled state; an elapsed expiry must be extended or cleared. Recovery/renewal is refused at the retention deadline. Paths remain reserved until physical deletion.
-
-DynamoDB TTL uses numeric Unix seconds in purgeAt, never expiresAt. Normal expiry schedules cleanup 7 days later; manual deletion schedules cleanup 7 days after deletion. TTL deletion is asynchronous. List filtering preserves pagination cursors; GSI results are eventually consistent. Conditional updates protect concurrent mutations; direct item reads are strongly consistent.
-
-Deployment order: deploy the public Lambda with lifecycle checks first, then the admin Lambda and console; enable TTL on purgeAt last after verification. The SAM template declares this TTL field for managed stacks. Existing manually managed production resources must be updated separately after approval; do not create a replacement table. No new API Gateway route is needed: restore uses the existing PATCH and batch routes. No production resource was changed during local implementation.

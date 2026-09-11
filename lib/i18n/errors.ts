@@ -22,6 +22,7 @@ const validationMessages: Record<string, MessageKey> = {
 };
 
 const apiMessages: Record<string, MessageKey> = {
+  SESSION_EXPIRED: 'api.sessionExpired',
   INVALID_SCHEDULE: 'life.invalid',
   RETENTION_ENDED: 'life.retentionEnded',
   LINK_DELETED: 'life.linkDeleted',
@@ -71,9 +72,13 @@ export function translateApiError(
   t: Translate,
   fallback: MessageKey,
 ): string {
-  if (typeof value !== 'object' || value === null) return t(fallback);
+  return t(getApiErrorKey(value, fallback));
+}
+
+export function getApiErrorKey(value: unknown, fallback: MessageKey): MessageKey {
+  if (typeof value !== 'object' || value === null) return fallback;
 
   const { code } = value as ApiError;
   const key = code ? apiMessages[code] : undefined;
-  return key ? t(key) : t(fallback);
+  return key ?? fallback;
 }

@@ -5,7 +5,8 @@ import { useState } from 'react';
 import { useRouter } from 'next/navigation';
 import { LanguageSwitcher } from '../components/LanguageSwitcher';
 import { ThemeToggle } from '../components/ThemeProvider';
-import { translateApiError } from '@/lib/i18n/errors';
+import { getApiErrorKey } from '@/lib/i18n/errors';
+import type { MessageKey } from '@/lib/i18n/messages';
 import { useLocale } from '@/lib/i18n/LocaleProvider';
 
 function getSafeReturnPath(): string {
@@ -28,14 +29,15 @@ export default function LoginPage() {
   const { t } = useLocale();
   const [password, setPassword] = useState('');
   const [loading, setLoading] = useState(false);
-  const [error, setError] = useState('');
+  const [errorKey, setErrorKey] = useState<MessageKey | null>(null);
+  const error = errorKey ? t(errorKey) : '';
 
   async function onLogin(e: React.FormEvent) {
     e.preventDefault();
-    setError('');
+    setErrorKey(null);
     
     if (!password) {
-      setError(t('login.passwordRequired'));
+      setErrorKey('login.passwordRequired');
       return;
     }
 
@@ -50,14 +52,14 @@ export default function LoginPage() {
       const data = await r.json().catch(() => ({}));
 
       if (!r.ok) {
-        setError(translateApiError(data, t, 'login.failed'));
+        setErrorKey(getApiErrorKey(data, 'login.failed'));
         return;
       }
 
       router.replace(getSafeReturnPath());
       router.refresh();
     } catch {
-      setError(t('login.networkError'));
+      setErrorKey('login.networkError');
     } finally {
       setLoading(false);
     }
