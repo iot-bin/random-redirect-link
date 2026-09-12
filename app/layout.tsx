@@ -2,6 +2,7 @@ import type { Metadata } from 'next';
 import { Geist, Geist_Mono } from 'next/font/google';
 import { cookies } from 'next/headers';
 import Script from 'next/script';
+import { Analytics } from '@vercel/analytics/next';
 import '@/app/globals.css';
 import { LocaleProvider } from '@/lib/i18n/LocaleProvider';
 import { LOCALE_COOKIE, normalizeLocale } from '@/lib/i18n/config';
@@ -57,6 +58,7 @@ export default async function RootLayout({
       </head>
       <body className={`${geistSans.variable} ${geistMono.variable}`}>
         <LocaleProvider initialLocale={locale}>{children}</LocaleProvider>
+        <Analytics />
       </body>
     </html>
   );
