@@ -380,7 +380,7 @@ export function LinkManagerPanel({
     record: LinkRecord,
     update: LinkUpdateInput,
   ): Promise<boolean> {
-    if (!target) return false;
+    if (!target?.canWrite) return false;
 
     setUpdatingPath(record.path);
     setSearchError('');
@@ -431,6 +431,7 @@ export function LinkManagerPanel({
   }
 
   function toggleSelection(path: string) {
+    if (!target?.canWrite) return;
     setPendingDeletePaths([]);
     setSelectedPaths((current) => (
       current.includes(path)
@@ -440,6 +441,7 @@ export function LinkManagerPanel({
   }
 
   function toggleAllVisible() {
+    if (!target?.canWrite) return;
     setPendingDeletePaths([]);
     const visiblePaths = items.map((record) => record.path);
     const allSelected = visiblePaths.every((path) => selectedPaths.includes(path));
@@ -451,7 +453,7 @@ export function LinkManagerPanel({
     paths: string[] = selectedPaths,
     deleteConfirmed = false,
   ) {
-    if (!target || paths.length === 0) return;
+    if (!target?.canWrite || paths.length === 0) return;
 
     const requestedPaths = [...paths];
     if (action === 'delete' && !deleteConfirmed) {
@@ -663,7 +665,7 @@ export function LinkManagerPanel({
                 <button
                   className="bulk-clear-button"
                   type="button"
-                  disabled={batchAction !== null || listLoading}
+                  disabled={!target?.canWrite || batchAction !== null || listLoading}
                   onClick={() => {
                     setSelectedPaths([]);
                     setPendingDeletePaths([]);
@@ -676,7 +678,7 @@ export function LinkManagerPanel({
                 <button
                   className="button button-secondary"
                   type="button"
-                  disabled={batchAction !== null || listLoading}
+                  disabled={!target?.canWrite || batchAction !== null || listLoading}
                   hidden={view === 'trash'}
                   onClick={() => void runBatchAction('enable')}
                 >
@@ -685,7 +687,7 @@ export function LinkManagerPanel({
                 <button
                   className="button button-secondary"
                   type="button"
-                  disabled={batchAction !== null || listLoading}
+                  disabled={!target?.canWrite || batchAction !== null || listLoading}
                   hidden={view === 'trash'}
                   onClick={() => void runBatchAction('disable')}
                 >
@@ -694,13 +696,13 @@ export function LinkManagerPanel({
                 <button
                   className="button button-danger"
                   type="button"
-                  disabled={batchAction !== null || listLoading}
+                  disabled={!target?.canWrite || batchAction !== null || listLoading}
                   hidden={view === 'trash'}
                   onClick={() => void runBatchAction('delete')}
                 >
                   {batchAction === 'delete' ? t('manager.deleting') : t('manager.bulkDelete')}
                 </button>
-                {view === 'trash' ? <button className="button button-primary" type="button" disabled={batchAction !== null || listLoading} onClick={() => void runBatchAction('restore')}>{t('life.restore')}</button> : null}
+                {view === 'trash' ? <button className="button button-primary" type="button" disabled={!target?.canWrite || batchAction !== null || listLoading} onClick={() => void runBatchAction('restore')}>{t('life.restore')}</button> : null}
               </div>
             </div>
           ) : null}
@@ -802,7 +804,7 @@ export function LinkManagerPanel({
                   <button
                     className="button button-secondary"
                     type="button"
-                    disabled={batchAction !== null || listLoading}
+                    disabled={!target?.canWrite || batchAction !== null || listLoading}
                     onClick={() => void runBatchAction(
                       batchFeedback.action,
                       batchFeedback.failed.map((failure) => failure.path),
@@ -825,6 +827,7 @@ export function LinkManagerPanel({
             selectedPaths={selectedPaths}
             onSelect={showRecord}
             onCopy={(record) => void copyShortUrl(record)}
+            selectionDisabled={!target?.canWrite}
             onToggleSelection={toggleSelection}
             onToggleAll={toggleAllVisible}
           />

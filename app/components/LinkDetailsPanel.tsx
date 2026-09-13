@@ -211,7 +211,7 @@ export function LinkDetailsPanel({
           {formError ? <div className="alert alert-error" role="alert">{formError}</div> : null}
 
           <div className="form-actions">
-            <button className="button button-primary" type="submit" disabled={updating || retentionEnded}>
+            <button className="button button-primary" type="submit" disabled={!target?.canWrite || updating || retentionEnded}>
               {updating ? t('details.saving') : record.deletedAt ? t('life.restoreEdit') : t('details.save')}
             </button>
             <button
@@ -258,7 +258,7 @@ export function LinkDetailsPanel({
             type="button"
             onClick={() => setEditing(true)}
             title={t('details.edit')}
-            disabled={updating || deleting || retentionEnded}
+            disabled={!target?.canWrite || updating || deleting || retentionEnded}
           >
             <EditIcon />
             <span className="sr-only">{t('details.edit')}</span>
@@ -330,7 +330,7 @@ export function LinkDetailsPanel({
         <button
           className="button button-secondary"
           type="button"
-          disabled={updating || deleting || retentionEnded}
+          disabled={!target?.canWrite || updating || deleting || retentionEnded}
           onClick={() => void onUpdate(record, {
             enabled: record.enabled === false,
             expectedUpdatedAt: record.updatedAt,
@@ -352,15 +352,15 @@ export function LinkDetailsPanel({
           className="button button-danger"
           type="button"
           onClick={() => onDelete(record)}
-          disabled={deleting || updating || retentionEnded}
+          disabled={!target?.canWrite || deleting || updating || retentionEnded}
         >
           <TrashIcon />
           {deleting ? t('details.deleting') : t('details.delete')}
         </button>
       </div> : <div className="status-control-zone">
         <div><h3>{t('life.trash')}</h3><p>{t(retentionEnded ? 'life.retentionEnded' : 'life.restoreHelp')}</p></div>
-        <button className="button button-primary" type="button" disabled={updating || deleting || retentionEnded} onClick={() => setEditing(true)}>{t('life.restoreEdit')}</button>
-        <button className="button button-secondary" type="button" disabled={updating || deleting || retentionEnded} onClick={() => void onUpdate(record, { restore: true, expectedUpdatedAt: record.updatedAt })}>{t('life.restore')}</button>
+        <button className="button button-primary" type="button" disabled={!target?.canWrite || updating || deleting || retentionEnded} onClick={() => setEditing(true)}>{t('life.restoreEdit')}</button>
+        <button className="button button-secondary" type="button" disabled={!target?.canWrite || updating || deleting || retentionEnded} onClick={() => void onUpdate(record, { restore: true, expectedUpdatedAt: record.updatedAt })}>{t('life.restore')}</button>
       </div>}
     </section>
   );

@@ -27,6 +27,11 @@ function getSafeReturnPath(): string {
 export default function LoginPage() {
   const router = useRouter();
   const { t } = useLocale();
+  const [username, setUsername] = useState('');
+  const [challenge, setChallenge] = useState('');
+  const [code, setCode] = useState('');
+  const [recovery, setRecovery] = useState<'none' | 'request' | 'confirm'>('none');
+  const [notice, setNotice] = useState<MessageKey | null>(null);
   const [password, setPassword] = useState('');
   const [loading, setLoading] = useState(false);
   const [errorKey, setErrorKey] = useState<MessageKey | null>(null);
@@ -36,25 +41,25 @@ export default function LoginPage() {
     e.preventDefault();
     setErrorKey(null);
     
-    if (!password) {
-      setErrorKey('login.passwordRequired');
+    if (!username.trim() || (recovery !== 'request' && challenge !== 'SOFTWARE_TOKEN_MFA' && !password)) {
+      setErrorKey('auth.required');
       return;
     }
-
     setLoading(true);
     try {
-      const r = await fetch('/api/auth/login', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ password }),
+      const r = await fetch(recovery === 'none' ? '/api/auth/login' : '/api/auth/recovery', {
+        method: 'POST', headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ username, password, challenge: challenge || undefined, code,
+          action: recovery === 'confirm' ? 'confirm' : 'request' }),
       });
-
       const data = await r.json().catch(() => ({}));
-
       if (!r.ok) {
         setErrorKey(getApiErrorKey(data, 'login.failed'));
         return;
       }
+      if (recovery === 'request') { setRecovery('confirm'); setPassword(''); setNotice('auth.codeSent'); return; }
+      if (recovery === 'confirm') { setRecovery('none'); setPassword(''); setNotice('auth.passwordChanged'); return; }
+      if (data.challenge) { setChallenge(data.challenge); setPassword(''); setCode(''); return; }
 
       router.replace(getSafeReturnPath());
       router.refresh();
@@ -88,7 +93,14 @@ export default function LoginPage() {
         <div style={styles.card}>
           <form onSubmit={onLogin} style={styles.form}>
             <div style={styles.fieldGroup}>
-              <label htmlFor="console-password" style={styles.fieldLabel}>{t('login.password')}</label>
+              <label htmlFor="console-username" style={styles.fieldLabel}>{t('auth.email')}</label>
+              <input id="console-username" type="email" value={username} onChange={e => setUsername(e.target.value)}
+                disabled={Boolean(challenge) || recovery === 'confirm'} autoComplete="username" required
+                style={styles.input} autoFocus />
+            </div>
+            {challenge === 'NEW_PASSWORD_REQUIRED' ? <p role="status">{t('auth.newPasswordHelp')}</p> : null}
+            {recovery !== 'request' && challenge !== 'SOFTWARE_TOKEN_MFA' ? <div style={styles.fieldGroup}>
+              <label htmlFor="console-password" style={styles.fieldLabel}>{t(challenge === 'NEW_PASSWORD_REQUIRED' || recovery === 'confirm' ? 'auth.newPassword' : 'login.password')}</label>
               <input
                 id="console-password"
                 type="password"
@@ -96,13 +108,18 @@ export default function LoginPage() {
                 onChange={(e) => setPassword(e.target.value)}
                 placeholder={t('login.passwordPlaceholder')}
                 style={styles.input}
-                autoComplete="current-password"
+                autoComplete={challenge === 'NEW_PASSWORD_REQUIRED' || recovery === 'confirm' ? 'new-password' : 'current-password'}
                 aria-invalid={Boolean(error)}
                 aria-describedby={error ? 'login-error' : undefined}
-                autoFocus
+                required
               />
-            </div>
-
+            </div> : null}
+            {challenge === 'SOFTWARE_TOKEN_MFA' || recovery === 'confirm' ? <div style={styles.fieldGroup}>
+              <label htmlFor="auth-code" style={styles.fieldLabel}>{t('auth.code')}</label>
+              <input id="auth-code" inputMode="numeric" autoComplete="one-time-code" value={code}
+                onChange={e => setCode(e.target.value)} required style={styles.input} />
+            </div> : null}
+            {notice ? <p role="status">{t(notice)}</p> : null}
             {error ? (
               <div id="login-error" role="alert" style={styles.errorBox}>
                 <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" style={{ flexShrink: 0 }}>
@@ -113,8 +130,12 @@ export default function LoginPage() {
             ) : null}
 
             <button type="submit" disabled={loading} style={loading ? { ...styles.primaryBtn, opacity: 0.7, cursor: 'not-allowed' } : styles.primaryBtn}>
-              {loading ? t('login.submitting') : t('login.submit')}
+              {loading ? t('login.submitting') : t(recovery === 'request' ? 'auth.sendCode' : recovery === 'confirm' || challenge ? 'auth.continue' : 'login.submit')}
             </button>
+            <button type="button" className="button button-secondary" disabled={loading} onClick={() => {
+              setRecovery(recovery === 'none' && !challenge ? 'request' : 'none');
+              setChallenge(''); setPassword(''); setCode(''); setErrorKey(null); setNotice(null);
+            }}>{t(recovery === 'none' && !challenge ? 'auth.forgotPassword' : 'auth.back')}</button>
           </form>
         </div>
 

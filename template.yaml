@@ -5,6 +5,10 @@ Description: >
   two HTTP APIs, access logs, throttling, and least-privilege IAM.
 
 Parameters:
+  ManagementRoleArn:
+    Type: String
+    AllowedPattern: '^arn:aws:iam::[0-9]{12}:role/.+$'
+    Description: IAM role of the control service allowed by the Admin handler.
   Environment:
     Type: String
     Default: dev
@@ -107,21 +111,6 @@ Resources:
         - Key: Environment
           Value: !Ref Environment
 
-  AdminTokenSecret:
-    Type: AWS::SecretsManager::Secret
-    DeletionPolicy: Retain
-    UpdateReplacePolicy: Retain
-    Properties:
-      Description: !Sub Admin API bearer token for ${AWS::StackName}
-      GenerateSecretString:
-        ExcludePunctuation: true
-        PasswordLength: 48
-      Tags:
-        - Key: Application
-          Value: random-redirect-link
-        - Key: Environment
-          Value: !Ref Environment
-
   AdminApiAccessLogGroup:
     Type: AWS::Logs::LogGroup
     Properties:
@@ -145,6 +134,9 @@ Resources:
   AdminHttpApi:
     Type: AWS::Serverless::HttpApi
     Properties:
+      Auth:
+        EnableIamAuthorizer: true
+        DefaultAuthorizer: AWS_IAM
       StageName: !Ref Environment
       FailOnWarnings: true
       AccessLogSettings:
@@ -192,7 +184,7 @@ Resources:
         Variables:
           TABLE_NAME: !Ref LinksTable
           LINKS_INDEX_NAME: !Ref LinksIndexName
-          ADMIN_TOKEN: !Sub '{{resolve:secretsmanager:${AdminTokenSecret}:SecretString}}'
+          MANAGEMENT_ROLE_ARN: !Ref ManagementRoleArn
       Policies:
         - Version: '2012-10-17'
           Statement:
@@ -331,9 +323,6 @@ Outputs:
   PublicApiBaseUrl:
     Description: HTTPS base URL for public redirects.
     Value: !Sub 'https://${PublicHttpApi}.execute-api.${AWS::Region}.${AWS::URLSuffix}/${Environment}'
-  AdminTokenSecretArn:
-    Description: Secrets Manager ARN containing the generated Admin API token.
-    Value: !Ref AdminTokenSecret
   AdminFunctionName:
     Description: Name of the Admin Lambda function.
     Value: !Ref AdminFunction

@@ -5,6 +5,7 @@ import Script from 'next/script';
 import '@/app/globals.css';
 import { LocaleProvider } from '@/lib/i18n/LocaleProvider';
 import { LOCALE_COOKIE, normalizeLocale } from '@/lib/i18n/config';
+import { getSiteSettings } from '@/lib/api-targets';
 import { messages } from '@/lib/i18n/messages';
 
 const geistSans = Geist({
@@ -24,9 +25,10 @@ export async function generateMetadata(): Promise<Metadata> {
   const cookieStore = await cookies();
   const locale = normalizeLocale(cookieStore.get(LOCALE_COOKIE)?.value);
 
+  const site = await getSiteSettings();
   return {
-    title: process.env.SITE_TITLE || messages[locale]['metadata.title'],
-    description: process.env.SITE_DESCRIPTION || messages[locale]['metadata.description'],
+    title: site.title || messages[locale]['metadata.title'],
+    description: site.description || messages[locale]['metadata.description'],
     icons: {
       icon: [
         { url: '/favicon.ico?v=2', type: 'image/x-icon' },
@@ -51,9 +53,7 @@ export default async function RootLayout({
   return (
     <html lang={locale} data-theme="light" suppressHydrationWarning>
       <head>
-        <Script id="theme-initialization" strategy="beforeInteractive">
-          {themeInitializationScript}
-        </Script>
+        <Script id="theme-initialization" strategy="beforeInteractive">{themeInitializationScript}</Script>
       </head>
       <body className={`${geistSans.variable} ${geistMono.variable}`}>
         <LocaleProvider initialLocale={locale}>{children}</LocaleProvider>

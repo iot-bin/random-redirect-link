@@ -2,6 +2,7 @@ export interface PublicApiTarget {
   id: string;
   name: string;
   redirectBaseUrl: string;
+  canWrite?: boolean;
 }
 
 export interface LinkRecord {

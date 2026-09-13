@@ -22,11 +22,13 @@ interface LinkListProps {
   onCopy: (record: LinkRecord) => void;
   onToggleSelection: (path: string) => void;
   onToggleAll: () => void;
+  selectionDisabled?: boolean;
 }
 
 interface SelectionCheckboxProps {
   checked: boolean;
   indeterminate?: boolean;
+  disabled?: boolean;
   label: string;
   onChange: () => void;
 }
@@ -40,6 +42,7 @@ interface LinkActionsProps {
 
 function SelectionCheckbox({
   checked,
+  disabled,
   indeterminate = false,
   label,
   onChange,
@@ -55,6 +58,7 @@ function SelectionCheckbox({
       ref={inputRef}
       className="selection-checkbox"
       type="checkbox"
+      disabled={disabled}
       checked={checked}
       aria-label={label}
       onChange={onChange}
@@ -115,6 +119,7 @@ export function LinkList({
   onCopy,
   onToggleSelection,
   onToggleAll,
+  selectionDisabled = false,
 }: LinkListProps) {
   const { locale, t } = useLocale();
   const dateFormatter = useMemo(() => new Intl.DateTimeFormat(locale, {
@@ -163,7 +168,7 @@ export function LinkList({
           <thead>
             <tr>
               <th scope="col">
-                <SelectionCheckbox
+                <SelectionCheckbox disabled={selectionDisabled}
                   checked={allSelected}
                   indeterminate={someSelected && !allSelected}
                   label={t('list.selectAll')}
@@ -185,7 +190,7 @@ export function LinkList({
               return (
                 <tr key={record.path} className={selected ? 'is-selected' : undefined}>
                   <td>
-                    <SelectionCheckbox
+                    <SelectionCheckbox disabled={selectionDisabled}
                       checked={selectedPathSet.has(record.path)}
                       label={t('list.selectOne', { path: record.path })}
                       onChange={() => onToggleSelection(record.path)}
@@ -238,7 +243,7 @@ export function LinkList({
             >
               <div className="link-card-heading">
                 <div className="link-card-select">
-                  <SelectionCheckbox
+                  <SelectionCheckbox disabled={selectionDisabled}
                     checked={selectedPathSet.has(record.path)}
                     label={t('list.selectOne', { path: record.path })}
                     onChange={() => onToggleSelection(record.path)}

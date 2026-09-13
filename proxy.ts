@@ -1,6 +1,6 @@
 import { NextResponse } from 'next/server';
 import type { NextRequest } from 'next/server';
-import { verifySessionToken } from '@/lib/session';
+
 
 const PUBLIC_ASSET_PATHS = new Set([
   '/site.webmanifest',
@@ -24,7 +24,13 @@ function isPublicAsset(pathname: string): boolean {
 export async function proxy(request: NextRequest) {
   const { pathname } = request.nextUrl;
 
-  if (pathname.startsWith('/login') || pathname.startsWith('/api/auth')) {
+  // All browser mutations must originate from this host, including login/logout.
+  if (pathname.startsWith('/api/') && !['GET', 'HEAD', 'OPTIONS'].includes(request.method)) {
+    if (request.headers.get('origin') !== request.nextUrl.origin) {
+      return NextResponse.json({ code: 'INVALID_ORIGIN', error: 'Invalid origin' }, { status: 403 });
+    }
+  }
+  if (pathname === '/login' || pathname.startsWith('/api/auth/')) {
     return NextResponse.next();
   }
 
@@ -32,14 +38,9 @@ export async function proxy(request: NextRequest) {
     return NextResponse.next();
   }
 
-  const secret = process.env.CONSOLE_PASSWORD;
-  const sessionToken = request.cookies.get('session')?.value;
-  const isAuthenticated =
-    Boolean(secret)
-    && Boolean(sessionToken)
-    && await verifySessionToken(sessionToken ?? '', secret ?? '');
-
-  if (!isAuthenticated) {
+  // Optimistic navigation guard only. AWS verifies the token and authorization.
+  const hasSession = request.cookies.has('console-access') || request.cookies.has('console-refresh');
+  if (!hasSession) {
     if (pathname.startsWith('/api/')) {
       return NextResponse.json(
         { error: '登录状态已失效，请重新登录', code: 'SESSION_EXPIRED' },

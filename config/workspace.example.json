@@ -1,0 +1,18 @@
+{
+  "version": 0,
+  "site": {
+    "title": "Short Link Console",
+    "description": "Manage short links"
+  },
+  "defaultTargetId": "example",
+  "targets": [
+    {
+      "id": "example",
+      "name": "Example environment",
+      "apiId": "replacewithapiid",
+      "stage": "$default",
+      "enabled": true,
+      "redirectBaseUrl": "https://links.example.com"
+    }
+  ]
+}

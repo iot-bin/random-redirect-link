@@ -2,13 +2,24 @@ import assert from "node:assert/strict";
 import test from "node:test";
 
 process.env.TABLE_NAME = "test-table";
-process.env.ADMIN_TOKEN = "test-token";
+process.env.MANAGEMENT_ROLE_ARN = "arn:aws:iam::123456789012:role/control";
+const authorizer = { iam: { accountId: "123456789012", userArn: "arn:aws:sts::123456789012:assumed-role/control/session" } };
 
 const { handler } = await import("../src/index.mjs");
 
 function parseBody(response) {
   return JSON.parse(response.body);
 }
+
+test('rejects bearer-only, wrong-account and wrong-role requests', async () => {
+  for (const iam of [undefined,
+    { accountId: '123456789012', userArn: 'arn:aws:sts::123456789012:assumed-role/other/session' },
+    { accountId: '999999999999', userArn: 'arn:aws:sts::123456789012:assumed-role/control/session' },
+    { accountId: '123456789012', userArn: 'arn:aws:sts::123456789012:assumed-role/control-evil/session' }]) {
+    const response = await handler({ headers: { authorization: 'Bearer test-token' }, rawPath: '/links', requestContext: { http: { method: 'GET' }, authorizer: { iam } } });
+    assert.equal(response.statusCode, 401);
+  }
+});
 
 test("rejects unauthorized requests before routing", async () => {
   const response = await handler({
@@ -22,8 +33,7 @@ test("rejects unauthorized requests before routing", async () => {
 
 test("returns a stable error for unknown routes", async () => {
   const response = await handler({
-    headers: { authorization: "Bearer test-token" },
-    requestContext: { http: { method: "GET" } },
+    requestContext: { authorizer, http: { method: "GET" } },
     rawPath: "/unknown"
   });
 
@@ -34,7 +44,7 @@ test("returns a stable error for unknown routes", async () => {
 test("validates update payloads before calling DynamoDB", async () => {
   const response = await handler({
     headers: { authorization: "Bearer test-token" },
-    requestContext: { http: { method: "PATCH" } },
+    requestContext: { authorizer, http: { method: "PATCH" } },
     rawPath: "/links/example",
     body: JSON.stringify({ enabled: "false" })
   });
@@ -46,7 +56,7 @@ test("validates update payloads before calling DynamoDB", async () => {
 test("validates batch actions before calling DynamoDB", async () => {
   const response = await handler({
     headers: { authorization: "Bearer test-token" },
-    requestContext: { http: { method: "POST" } },
+    requestContext: { authorizer, http: { method: "POST" } },
     rawPath: "/links/batch",
     body: JSON.stringify({ action: "archive", paths: ["example"] })
   });

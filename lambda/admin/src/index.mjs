@@ -1,4 +1,4 @@
-import { ADMIN_TOKEN, hasRequiredConfig } from "./config.mjs";
+import { MANAGEMENT_ROLE_ARN, hasRequiredConfig } from "./config.mjs";
 import { HttpError, isThrottlingError } from "./errors.mjs";
 import { batchMutateLinks } from "./handlers/batch.mjs";
 import {
@@ -8,7 +8,7 @@ import {
   listLinks,
   updateLink
 } from "./handlers/links.mjs";
-import { getAuth, json } from "./http.mjs";
+import { json } from "./http.mjs";
 
 export const handler = async (event, context) => {
   if (!hasRequiredConfig()) {
@@ -18,7 +18,10 @@ export const handler = async (event, context) => {
     });
   }
 
-  if (getAuth(event) !== `Bearer ${ADMIN_TOKEN}`) {
+  const iam = event?.requestContext?.authorizer?.iam;
+  const role = /^arn:aws:iam::(\d{12}):role\/(.+)$/.exec(MANAGEMENT_ROLE_ARN ?? '');
+  const sessionPrefix = role ? 'arn:aws:sts::' + role[1] + ':assumed-role/' + role[2].split('/').pop() + '/' : '';
+  if (!sessionPrefix || !iam?.userArn?.startsWith(sessionPrefix) || iam.accountId !== role[1]) {
     return json(401, { error: "unauthorized", code: "UNAUTHORIZED" });
   }
 
@@ -27,6 +30,7 @@ export const handler = async (event, context) => {
     ?? event?.httpMethod
     ?? "GET";
   const rawPath = event?.rawPath ?? event?.path ?? "/";
+
 
   try {
     if (method === "POST" && rawPath === "/links/batch") {
