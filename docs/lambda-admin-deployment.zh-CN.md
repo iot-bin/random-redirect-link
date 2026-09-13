@@ -5,10 +5,10 @@
 本文用于部署项目中的模块化 `random-redirect-link-admin` Lambda 源码，并将
 API Gateway 路由绑定到该函数。示例环境如下：
 
-- AWS CLI Profile：`mcp-prod-02`
+- AWS CLI Profile：`your-aws-profile`
 - Region：`ap-southeast-1`
 - Lambda：`random-redirect-link-admin`
-- HTTP API ID：`h2ocs5m4ra`
+- HTTP API ID：`ADMIN_API_ID`
 - DynamoDB 表：`random-redirect-link`
 - GSI：`links-by-path`
 
@@ -129,12 +129,12 @@ Get-ChildItem -LiteralPath $verifyDirectory
 ## 4. 确认 AWS 身份与现有配置
 
 ```powershell
-aws sts get-caller-identity --profile mcp-prod-02
+aws sts get-caller-identity --profile your-aws-profile
 
 aws lambda get-function-configuration `
   --function-name random-redirect-link-admin `
   --region ap-southeast-1 `
-  --profile mcp-prod-02 `
+  --profile your-aws-profile `
   --query "{Runtime:Runtime,Handler:Handler,Timeout:Timeout,State:State,LastUpdateStatus:LastUpdateStatus}"
 ```
 
@@ -195,7 +195,7 @@ $backupPath = Join-Path $backupDirectory "random-redirect-link-admin-$timestamp.
 $codeUrl = aws lambda get-function `
   --function-name random-redirect-link-admin `
   --region ap-southeast-1 `
-  --profile mcp-prod-02 `
+  --profile your-aws-profile `
   --query "Code.Location" `
   --output text
 
@@ -212,12 +212,12 @@ aws lambda update-function-code `
   --function-name random-redirect-link-admin `
   --zip-file "fileb://lambda/admin/dist/random-redirect-link-admin.zip" `
   --region ap-southeast-1 `
-  --profile mcp-prod-02
+  --profile your-aws-profile
 
 aws lambda wait function-updated `
   --function-name random-redirect-link-admin `
   --region ap-southeast-1 `
-  --profile mcp-prod-02
+  --profile your-aws-profile
 ```
 
 如果 Timeout 还不是 10 秒，再执行：
@@ -227,12 +227,12 @@ aws lambda update-function-configuration `
   --function-name random-redirect-link-admin `
   --timeout 10 `
   --region ap-southeast-1 `
-  --profile mcp-prod-02
+  --profile your-aws-profile
 
 aws lambda wait function-updated `
   --function-name random-redirect-link-admin `
   --region ap-southeast-1 `
-  --profile mcp-prod-02
+  --profile your-aws-profile
 ```
 
 ## 7. 绑定 API Gateway 路由
@@ -252,9 +252,9 @@ POST   /links/batch
 
 ```powershell
 aws apigatewayv2 get-routes `
-  --api-id h2ocs5m4ra `
+  --api-id ADMIN_API_ID `
   --region ap-southeast-1 `
-  --profile mcp-prod-02 `
+  --profile your-aws-profile `
   --query "Items[].{Route:RouteKey,Target:Target}" `
   --output table
 ```
@@ -263,7 +263,7 @@ aws apigatewayv2 get-routes `
 
 1. 打开 AWS Console。
 2. 进入 API Gateway。
-3. 打开 HTTP API `h2ocs5m4ra`。
+3. 打开 HTTP API `ADMIN_API_ID`。
 4. 进入 `Routes`。
 5. 选择对应路由并点击 `Attach integration`。
 6. 选择 Lambda `random-redirect-link-admin` 的 AWS Proxy integration。
@@ -279,7 +279,7 @@ aws apigatewayv2 get-routes `
 aws lambda get-policy `
   --function-name random-redirect-link-admin `
   --region ap-southeast-1 `
-  --profile mcp-prod-02
+  --profile your-aws-profile
 ```
 
 `PATCH /{path+}` 应由现有 `{path+}` 权限覆盖。批量路由如果没有对应权限，可添加：
@@ -290,9 +290,9 @@ aws lambda add-permission `
   --statement-id apigateway-admin-links-batch `
   --action lambda:InvokeFunction `
   --principal apigateway.amazonaws.com `
-  --source-arn "arn:aws:execute-api:ap-southeast-1:613574620583:h2ocs5m4ra/*/POST/links/batch" `
+  --source-arn "arn:aws:execute-api:ap-southeast-1:123456789012:ADMIN_API_ID/*/POST/links/batch" `
   --region ap-southeast-1 `
-  --profile mcp-prod-02
+  --profile your-aws-profile
 ```
 
 如果 Statement ID 已存在，不要重复添加；先检查现有 Policy。
@@ -303,7 +303,7 @@ aws lambda add-permission `
 确认目标地址允许用于测试。
 
 ```powershell
-$adminBaseUrl = "https://h2ocs5m4ra.execute-api.ap-southeast-1.amazonaws.com"
+$adminBaseUrl = "https://ADMIN_API_ID.execute-api.ap-southeast-1.amazonaws.com"
 $secureToken = Read-Host "Admin token" -AsSecureString
 $adminToken = [Net.NetworkCredential]::new("", $secureToken).Password
 $headers = @{ Authorization = "Bearer $adminToken" }
@@ -363,7 +363,7 @@ Remove-Variable adminToken, secureToken, headers
 aws logs tail "/aws/lambda/random-redirect-link-admin" `
   --since 15m `
   --region ap-southeast-1 `
-  --profile mcp-prod-02
+  --profile your-aws-profile
 ```
 
 重点检查：
@@ -382,12 +382,12 @@ aws lambda update-function-code `
   --function-name random-redirect-link-admin `
   --zip-file "fileb://lambda/admin/backups/<backup-file>.zip" `
   --region ap-southeast-1 `
-  --profile mcp-prod-02
+  --profile your-aws-profile
 
 aws lambda wait function-updated `
   --function-name random-redirect-link-admin `
   --region ap-southeast-1 `
-  --profile mcp-prod-02
+  --profile your-aws-profile
 ```
 
 代码回滚不会自动还原 API Gateway 路由或 Lambda 配置。如果本次同时修改了这些资源，

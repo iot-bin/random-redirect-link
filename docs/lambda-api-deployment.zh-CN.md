@@ -4,10 +4,10 @@
 
 本文用于打包和部署公共跳转函数 `random-redirect-link-api`。示例环境如下：
 
-- AWS CLI Profile：`mcp-prod-02`
+- AWS CLI Profile：`your-aws-profile`
 - Region：`ap-southeast-1`
 - Lambda：`random-redirect-link-api`
-- HTTP API ID：`fvdc52ex62`
+- HTTP API ID：`PUBLIC_API_ID`
 - DynamoDB 表：`random-redirect-link`
 
 访客需要直接打开短链，因此公共函数按设计不要求身份认证。请把执行角色限制为只读，
@@ -80,12 +80,12 @@ Get-ChildItem -LiteralPath $verifyDirectory
 ## 4. 确认 AWS 目标
 
 ```powershell
-aws sts get-caller-identity --profile mcp-prod-02
+aws sts get-caller-identity --profile your-aws-profile
 
 aws lambda get-function-configuration `
   --function-name random-redirect-link-api `
   --region ap-southeast-1 `
-  --profile mcp-prod-02 `
+  --profile your-aws-profile `
   --query "{Runtime:Runtime,Handler:Handler,Timeout:Timeout,State:State,LastUpdateStatus:LastUpdateStatus}"
 ```
 
@@ -131,7 +131,7 @@ $backupPath = Join-Path $backupDirectory "random-redirect-link-api-$timestamp.zi
 $codeUrl = aws lambda get-function `
   --function-name random-redirect-link-api `
   --region ap-southeast-1 `
-  --profile mcp-prod-02 `
+  --profile your-aws-profile `
   --query "Code.Location" `
   --output text
 
@@ -148,12 +148,12 @@ aws lambda update-function-code `
   --function-name random-redirect-link-api `
   --zip-file "fileb://lambda/api/dist/random-redirect-link-api.zip" `
   --region ap-southeast-1 `
-  --profile mcp-prod-02
+  --profile your-aws-profile
 
 aws lambda wait function-updated `
   --function-name random-redirect-link-api `
   --region ap-southeast-1 `
-  --profile mcp-prod-02
+  --profile your-aws-profile
 ```
 
 发送测试流量前，确认函数恢复为 `State=Active` 且
@@ -172,9 +172,9 @@ HEAD /{proxy+}
 
 ```powershell
 aws apigatewayv2 get-routes `
-  --api-id fvdc52ex62 `
+  --api-id PUBLIC_API_ID `
   --region ap-southeast-1 `
-  --profile mcp-prod-02 `
+  --profile your-aws-profile `
   --query "Items[].{Route:RouteKey,Target:Target}" `
   --output table
 ```
@@ -187,7 +187,7 @@ API Gateway Deployment。
 选择已有的固定目标、随机二级域名和停用记录。使用 `HEAD`，避免下载目标内容：
 
 ```powershell
-$publicBaseUrl = "https://fvdc52ex62.execute-api.ap-southeast-1.amazonaws.com"
+$publicBaseUrl = "https://PUBLIC_API_ID.execute-api.ap-southeast-1.amazonaws.com"
 
 curl.exe --head --max-redirs 0 "$publicBaseUrl/<固定短链路径>"
 curl.exe --head --max-redirs 0 "$publicBaseUrl/<随机短链路径>"
@@ -212,7 +212,7 @@ curl.exe --head --max-redirs 0 "$publicBaseUrl/<已停用短链路径>"
 aws logs tail "/aws/lambda/random-redirect-link-api" `
   --since 15m `
   --region ap-southeast-1 `
-  --profile mcp-prod-02
+  --profile your-aws-profile
 ```
 
 至少监控 Lambda 的 `Errors`、`Throttles`，以及接近 Timeout 的执行时间。对于公共

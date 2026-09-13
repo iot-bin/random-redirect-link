@@ -5,10 +5,10 @@
 This guide packages and deploys the public `random-redirect-link-api` Lambda.
 The examples use:
 
-- AWS CLI profile: `mcp-prod-02`
+- AWS CLI profile: `your-aws-profile`
 - Region: `ap-southeast-1`
 - Function: `random-redirect-link-api`
-- HTTP API ID: `fvdc52ex62`
+- HTTP API ID: `PUBLIC_API_ID`
 - DynamoDB table: `random-redirect-link`
 
 The public function is intentionally unauthenticated because visitors must be
@@ -84,12 +84,12 @@ Get-ChildItem -LiteralPath $verifyDirectory
 ## 4. Verify the AWS Target
 
 ```powershell
-aws sts get-caller-identity --profile mcp-prod-02
+aws sts get-caller-identity --profile your-aws-profile
 
 aws lambda get-function-configuration `
   --function-name random-redirect-link-api `
   --region ap-southeast-1 `
-  --profile mcp-prod-02 `
+  --profile your-aws-profile `
   --query "{Runtime:Runtime,Handler:Handler,Timeout:Timeout,State:State,LastUpdateStatus:LastUpdateStatus}"
 ```
 
@@ -135,7 +135,7 @@ $backupPath = Join-Path $backupDirectory "random-redirect-link-api-$timestamp.zi
 $codeUrl = aws lambda get-function `
   --function-name random-redirect-link-api `
   --region ap-southeast-1 `
-  --profile mcp-prod-02 `
+  --profile your-aws-profile `
   --query "Code.Location" `
   --output text
 
@@ -152,12 +152,12 @@ aws lambda update-function-code `
   --function-name random-redirect-link-api `
   --zip-file "fileb://lambda/api/dist/random-redirect-link-api.zip" `
   --region ap-southeast-1 `
-  --profile mcp-prod-02
+  --profile your-aws-profile
 
 aws lambda wait function-updated `
   --function-name random-redirect-link-api `
   --region ap-southeast-1 `
-  --profile mcp-prod-02
+  --profile your-aws-profile
 ```
 
 Verify that the function returns to `State=Active` and
@@ -176,9 +176,9 @@ Check their integration targets:
 
 ```powershell
 aws apigatewayv2 get-routes `
-  --api-id fvdc52ex62 `
+  --api-id PUBLIC_API_ID `
   --region ap-southeast-1 `
-  --profile mcp-prod-02 `
+  --profile your-aws-profile `
   --query "Items[].{Route:RouteKey,Target:Target}" `
   --output table
 ```
@@ -192,7 +192,7 @@ Choose existing records representing a fixed target, a random-subdomain target,
 and a disabled link. Use `HEAD` so target content is never downloaded:
 
 ```powershell
-$publicBaseUrl = "https://fvdc52ex62.execute-api.ap-southeast-1.amazonaws.com"
+$publicBaseUrl = "https://PUBLIC_API_ID.execute-api.ap-southeast-1.amazonaws.com"
 
 curl.exe --head --max-redirs 0 "$publicBaseUrl/<fixed-path>"
 curl.exe --head --max-redirs 0 "$publicBaseUrl/<random-path>"
@@ -217,7 +217,7 @@ the API, because an edge-cache policy can override origin behavior.
 aws logs tail "/aws/lambda/random-redirect-link-api" `
   --since 15m `
   --region ap-southeast-1 `
-  --profile mcp-prod-02
+  --profile your-aws-profile
 ```
 
 Monitor Lambda `Errors`, `Throttles`, and duration near the configured timeout.
