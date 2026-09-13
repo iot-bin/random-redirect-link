@@ -160,7 +160,7 @@ export function LinkDetailsPanel({
 
           <div className="edit-link-grid">
             <div className="form-field">
-              <label htmlFor="edit-status-code">{t('details.statusCode')}</label>
+              <span className="dropdown-field-title">{t('details.statusCode')}</span>
               <DropdownSelect
                 id="edit-status-code"
                 ariaLabel={t('details.statusCode')}
