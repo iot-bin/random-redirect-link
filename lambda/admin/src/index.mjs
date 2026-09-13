@@ -9,6 +9,7 @@ import {
   updateLink
 } from "./handlers/links.mjs";
 import { json } from "./http.mjs";
+import { requestPath } from './link-path.mjs';
 
 export const handler = async (event, context) => {
   if (!hasRequiredConfig()) {
@@ -29,7 +30,7 @@ export const handler = async (event, context) => {
     event?.requestContext?.http?.method
     ?? event?.httpMethod
     ?? "GET";
-  const rawPath = event?.rawPath ?? event?.path ?? "/";
+  const rawPath = requestPath(event);
 
 
   try {
