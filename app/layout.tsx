@@ -1,7 +1,6 @@
 import type { Metadata } from 'next';
 import { Geist, Geist_Mono } from 'next/font/google';
 import { cookies } from 'next/headers';
-import Script from 'next/script';
 import '@/app/globals.css';
 import { LocaleProvider } from '@/lib/i18n/LocaleProvider';
 import { LOCALE_COOKIE, normalizeLocale } from '@/lib/i18n/config';
@@ -53,7 +52,7 @@ export default async function RootLayout({
   return (
     <html lang={locale} data-theme="light" suppressHydrationWarning>
       <head>
-        <Script id="theme-initialization" strategy="beforeInteractive">{themeInitializationScript}</Script>
+        <script id="theme-initialization" dangerouslySetInnerHTML={{ __html: themeInitializationScript }} />
       </head>
       <body className={`${geistSans.variable} ${geistMono.variable}`}>
         <LocaleProvider initialLocale={locale}>{children}</LocaleProvider>

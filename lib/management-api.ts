@@ -2,14 +2,18 @@ import 'server-only';
 import { NextResponse } from 'next/server';
 import { bootstrap, isConfigured } from './bootstrap';
 import { accessToken, AuthError } from './session';
-export async function managementFetch(path: string, method = 'GET', body?: unknown) {
+import { cookies } from 'next/headers';
+import { ACCESS_COOKIE } from './session';
+export async function managementFetch(path: string, method = 'GET', body?: unknown, refresh = true) {
   if (!isConfigured()) throw new AuthError('CONFIG_ERROR',503);
   const send = (token: string) => fetch(bootstrap.managementApiUrl.replace(/\/+$/, '') + path, {
     method, headers: {Authorization:'Bearer '+token,'Content-Type':'application/json'},
     body:body === undefined ? undefined : JSON.stringify(body),cache:'no-store',redirect:'error',signal:AbortSignal.timeout(20000),
   });
-  let response = await send(await accessToken());
-  if (response.status === 401) {
+  const token = refresh ? await accessToken() : (await cookies()).get(ACCESS_COOKIE)?.value;
+  if (!token) throw new AuthError('SESSION_EXPIRED');
+  let response = await send(token);
+  if (response.status === 401 && refresh) {
     await response.body?.cancel();
     response = await send(await accessToken(true));
   }
