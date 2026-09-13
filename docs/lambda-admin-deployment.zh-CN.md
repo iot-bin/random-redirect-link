@@ -1,5 +1,7 @@
 # Admin Lambda 部署教程
 
+> `db-rebuild`：下文中的 Token 认证说明属于旧架构。IAM 迁移和回滚顺序请以[管理服务迁移指南](control-plane.zh-CN.md)为准。
+
 简体中文 | [English](lambda-admin-deployment.en.md)
 
 本文用于部署项目中的模块化 `random-redirect-link-admin` Lambda 源码，并将

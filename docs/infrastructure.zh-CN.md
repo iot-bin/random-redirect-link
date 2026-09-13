@@ -1,5 +1,7 @@
 # AWS SAM 基础设施
 
+> `db-rebuild`：下文中的 Token 与 Secrets Manager 说明属于旧架构。当前模板和部署顺序请以[管理服务迁移指南](control-plane.zh-CN.md)为准。
+
 项目根目录的 `template.yaml` 定义了后端基础设施：
 
 - 一个 DynamoDB 表及 `links-by-path` 全局二级索引；

@@ -1,5 +1,7 @@
 # 随机跳转短链控制台
 
+> db-rebuild：部署前必须阅读 [管理中心迁移说明](docs/control-plane.zh-CN.md)。旧 Token 部署教程仅供历史参考，不能直接用于本分支。
+
 简体中文 | [English](README.md)
 
 这是一个 Next.js 短链管理控制台，同时保存配套 AWS Lambda 的可版本管理源码。
@@ -30,8 +32,7 @@
   -> HTTP 301 或 302 跳转
 ```
 
-浏览器不会拿到 Admin API 令牌。Next.js 会在服务端解析所选环境，附加 Bearer
-令牌后再转发请求。
+浏览器和 Next.js 不再持有 Admin Token。Next.js 只转发用户访问令牌，管理服务验证环境权限后使用 IAM 签名调用 Admin API。
 
 ## 功能
 
@@ -67,37 +68,16 @@ public/              静态资源，包括项目 favicon
 
 ## 控制台配置
 
-将 `.env.example` 复制为 `.env.local`，然后配置：
+本分支使用 Cognito、DynamoDB 管理中心和 IAM 后端认证，不再读取
+`CONSOLE_PASSWORD`、`API_TARGETS`、`DEFAULT_TARGET_ID`、`SITE_TITLE` 或 `SITE_DESCRIPTION`。
 
-```env
-CONSOLE_PASSWORD=请替换为高强度密码
-SITE_TITLE=短链管理控制台
-SITE_DESCRIPTION=创建、查询和管理跳转短链
-API_TARGETS=[{"id":"prod","name":"生产环境","apiBaseUrl":"https://admin-api.example.com","adminToken":"请替换为管理令牌","redirectBaseUrl":"https://go.example.com"}]
-DEFAULT_TARGET_ID=prod
-```
+先按 [管理中心部署与迁移](docs/control-plane.zh-CN.md) 创建独立管理栈、初始化所有者和环境配置，
+再填写 `config/bootstrap.local.json` 中的区域、管理 API URL 和 Cognito Client ID。
+这三个值都是非敏感启动坐标，可提交到仓库；文件留空时应用拒绝登录。
 
-| 变量 | 必需 | 用途 |
-|---|---:|---|
-| `CONSOLE_PASSWORD` | 是 | 登录密码，同时用于签名控制台会话。 |
-| `API_TARGETS` | 是 | Admin API 环境的 JSON 数组。 |
-| `DEFAULT_TARGET_ID` | 否 | 初始选中的环境；未设置时使用第一个有效环境。 |
-| `SITE_TITLE` | 否 | 浏览器标题和控制台品牌名称。 |
-| `SITE_DESCRIPTION` | 否 | 页面元数据描述。 |
-
-每个 `API_TARGETS` 项目都需要：
-
-- `id`：稳定且唯一的标识符。
-- `name`：控制台显示名称。
-- `apiBaseUrl`：必须使用 HTTPS 的 Admin API 基础地址。
-- `adminToken`：与 Admin Lambda 匹配的 Bearer 令牌，只在服务端使用。
-- `redirectBaseUrl`：控制台显示的公共短链域名。
-
-不要给 `adminToken` 或其他秘密使用 `NEXT_PUBLIC_` 前缀。
-
-环境名称和 `redirectBaseUrl` 不负责数据隔离。需要独立记录时，每个环境的管理 API
-和公开跳转 Lambda 必须连接同一张环境专属表；不同环境使用不同表。托管平台修改
-`API_TARGETS` 后需要重新部署控制台。
+环境、站点标题和成员权限在管理中心编辑，无需重新部署前端。
+默认环境和分页数量按用户保存在数据库；语言和主题继续保存在浏览器。
+原登录页保留样式，改用邮箱、密码、首次登录改密、找回密码和可选验证器 MFA。
 
 ## 本地开发
 
@@ -106,7 +86,7 @@ npm install
 npm run dev
 ```
 
-打开 `http://localhost:3000`，使用 `CONSOLE_PASSWORD` 登录。
+初始化管理栈与 bootstrap 配置后，打开 `http://localhost:3000`，使用受邀的 Cognito 账号登录。
 
 常用检查命令：
 
@@ -120,7 +100,7 @@ npm run build
 
 | 函数 | 源码目录 | Handler | 必需环境变量 |
 |---|---|---|---|
-| `random-redirect-link-admin` | `lambda/admin` | `index.handler` | `TABLE_NAME`、`ADMIN_TOKEN`；`LINKS_INDEX_NAME` 可选 |
+| `random-redirect-link-admin` | `lambda/admin` | `index.handler` | `TABLE_NAME`、`MANAGEMENT_ROLE_ARN`；`LINKS_INDEX_NAME` 可选 |
 | `random-redirect-link-api` | `lambda/api` | `index.handler` | `TABLE_NAME` |
 
 生成推荐的精简部署包：
@@ -150,9 +130,9 @@ AWS SDK v3。需要固定并包含 SDK 版本时，在对应 Lambda 目录执行
 
 ## 安全和运维建议
 
-- 为 `CONSOLE_PASSWORD` 和 Admin Token 分别使用高强度值。
-- 生产秘密只保存在托管平台和 Lambda 配置中，不要提交 `.env.local`、令牌、下载的
-  Lambda 包或备份。
+- 使用独立 Cognito 账号并启用 TOTP MFA，按需分配环境权限。
+- 管理调用使用 Lambda IAM 角色，无需共享密码或 Admin Token。不要提交会话令牌、
+  下载的 Lambda 包或备份。
 - 公共跳转 API 按设计无需认证，应配置 API Gateway 限流并监控 Lambda 错误、限流
   和执行时间。
 - 公共 Lambda 的角色只授予短链表的 `dynamodb:GetItem`；Admin Lambda 只授予表和

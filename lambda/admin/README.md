@@ -1,5 +1,7 @@
 # random-redirect-link-admin Lambda
 
+> db-rebuild authentication change: this handler accepts only the management IAM role, not ADMIN_TOKEN. Follow the [migration guide](../../docs/control-plane.en.md). Token-based examples below are historical.
+
 [简体中文](README.zh-CN.md) | English
 
 This directory contains the version-controlled source for the

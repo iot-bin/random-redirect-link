@@ -1,5 +1,7 @@
 # Admin Lambda Deployment Guide
 
+> `db-rebuild`: token authentication instructions below describe the previous architecture. Use [the management-plane migration guide](control-plane.en.md) for the IAM migration and rollback order.
+
 [简体中文](lambda-admin-deployment.zh-CN.md) | English
 
 This guide packages and deploys the modular `random-redirect-link-admin` Lambda

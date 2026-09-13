@@ -1,5 +1,7 @@
 # random-redirect-link-admin Lambda
 
+> db-rebuild 认证变更：本分支只接受管理服务 IAM 角色，不再读取 ADMIN_TOKEN。请以 [管理中心迁移说明](../../docs/control-plane.zh-CN.md) 为准。下方旧令牌部署示例仅供历史参考。
+
 简体中文 | [English](README.md)
 
 本目录保存 `random-redirect-link-admin` Lambda 的可版本管理源码。

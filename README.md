@@ -1,5 +1,7 @@
 # Random Redirect Link Console
 
+> db-rebuild: read the [management-plane migration guide](docs/control-plane.en.md) before deploying. Older token-based deployment guides are historical and do not apply to this branch.
+
 [简体中文](README.zh-CN.md) | English
 
 A Next.js management console and version-controlled AWS Lambda source for
@@ -68,38 +70,14 @@ public/              Static assets, including the project favicon
 
 ## Console Configuration
 
-Copy `.env.example` to `.env.local` and set:
+This branch uses Cognito, a DynamoDB management plane, and IAM backend authentication.
+The console no longer reads CONSOLE_PASSWORD, API_TARGETS, DEFAULT_TARGET_ID, SITE_TITLE or SITE_DESCRIPTION.
 
-```env
-CONSOLE_PASSWORD=replace-with-a-strong-password
-SITE_TITLE=Short Link Console
-SITE_DESCRIPTION=Create, query, and manage redirect links
-API_TARGETS=[{"id":"prod","name":"Production","apiBaseUrl":"https://admin-api.example.com","adminToken":"replace-with-the-admin-token","redirectBaseUrl":"https://go.example.com"}]
-DEFAULT_TARGET_ID=prod
-```
-
-| Variable | Required | Purpose |
-|---|---:|---|
-| `CONSOLE_PASSWORD` | Yes | Signs the console session and protects login. |
-| `API_TARGETS` | Yes | JSON array of Admin API environments. |
-| `DEFAULT_TARGET_ID` | No | Initially selected target; otherwise the first valid target is used. |
-| `SITE_TITLE` | No | Browser title and console branding. |
-| `SITE_DESCRIPTION` | No | Page metadata description. |
-
-Each `API_TARGETS` entry requires:
-
-- `id`: stable unique identifier.
-- `name`: label displayed in the console.
-- `apiBaseUrl`: HTTPS Admin API base URL.
-- `adminToken`: matching Admin Lambda Bearer token; server-side only.
-- `redirectBaseUrl`: public short-link origin displayed by the console.
-
-Do not use a `NEXT_PUBLIC_` prefix for `adminToken` or any other secret.
-
-Environment labels and `redirectBaseUrl` do not isolate data. For independent records,
-each environment's Admin API and public redirect Lambda must use the same dedicated
-table, with a different table for each environment. Redeploy the console after
-changing `API_TARGETS` in the hosting platform.
+Follow [Management-plane deployment](docs/control-plane.en.md). Initialize the workspace,
+then fill `config/bootstrap.local.json` with the region, management API URL and Cognito client ID.
+These are public coordinates, not secrets. Blank coordinates deliberately prevent sign-in.
+Site and environment configuration and member grants are edited in the console without a redeploy.
+Default environment and page size are stored per user; language and theme remain browser preferences.
 
 ## Local Development
 
@@ -108,7 +86,7 @@ npm install
 npm run dev
 ```
 
-Open `http://localhost:3000` and sign in with `CONSOLE_PASSWORD`.
+After initializing the management stack and bootstrap configuration, open `http://localhost:3000` and sign in with your invited Cognito account.
 
 Useful checks:
 
@@ -122,7 +100,7 @@ npm run build
 
 | Function | Source | Handler | Required environment variables |
 |---|---|---|---|
-| `random-redirect-link-admin` | `lambda/admin` | `index.handler` | `TABLE_NAME`, `ADMIN_TOKEN`; optional `LINKS_INDEX_NAME` |
+| `random-redirect-link-admin` | `lambda/admin` | `index.handler` | `TABLE_NAME`, `MANAGEMENT_ROLE_ARN`; optional `LINKS_INDEX_NAME` |
 | `random-redirect-link-api` | `lambda/api` | `index.handler` | `TABLE_NAME` |
 
 Build the recommended small packages:
@@ -152,9 +130,9 @@ smoke tests, logs, and rollback. Building a package does not deploy it.
 
 ## Security and Operations
 
-- Use a strong `CONSOLE_PASSWORD` and a separate high-entropy Admin token.
-- Store production secrets only in the hosting platform and Lambda configuration;
-  never commit `.env.local`, tokens, downloaded Lambda packages, or backups.
+- Use an individual Cognito account and enable TOTP MFA. Scope environment grants to each user's needs.
+- Management calls use the Lambda IAM role; no shared password or Admin token is needed.
+  Never commit session tokens, downloaded Lambda packages, or backups.
 - The public redirect API is intentionally unauthenticated. Apply API Gateway
   throttling and monitor Lambda errors, throttles, and duration.
 - Scope the public Lambda role to `dynamodb:GetItem` on the link table. Scope the
