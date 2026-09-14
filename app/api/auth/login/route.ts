@@ -1,5 +1,4 @@
 import { cookies } from 'next/headers';
-import { bootstrap } from '@/lib/bootstrap';
 import { cognito,cookieOptions,saveTokens,AuthError } from '@/lib/session';
 import { managementError } from '@/lib/management-api';
 export async function POST(request:Request) {
@@ -16,11 +15,11 @@ export async function POST(request:Request) {
       if(c.name==='NEW_PASSWORD_REQUIRED') fields.NEW_PASSWORD=String(body.password??'');
       else if(c.name==='SOFTWARE_TOKEN_MFA') fields.SOFTWARE_TOKEN_MFA_CODE=String(body.code??'');
       else throw new AuthError('AUTH_CHALLENGE_UNSUPPORTED',400);
-      result=await cognito('RespondToAuthChallenge',{ClientId:bootstrap.cognitoClientId,ChallengeName:c.name,Session:c.session,ChallengeResponses:fields});
+      result=await cognito('RespondToAuthChallenge',{ChallengeName:c.name,Session:c.session,ChallengeResponses:fields});
     } else {
       jar.delete('console-challenge');
       if(typeof body.password!=='string'||!body.password||body.password.length>256) throw new AuthError('INVALID_REQUEST',400);
-      result=await cognito('InitiateAuth',{ClientId:bootstrap.cognitoClientId,AuthFlow:'USER_PASSWORD_AUTH',AuthParameters:{USERNAME:username,PASSWORD:body.password}});
+      result=await cognito('InitiateAuth',{AuthFlow:'USER_PASSWORD_AUTH',AuthParameters:{USERNAME:username,PASSWORD:body.password}});
     }
     if(result.ChallengeName) {
       if(!['NEW_PASSWORD_REQUIRED','SOFTWARE_TOKEN_MFA'].includes(result.ChallengeName)) throw new AuthError('AUTH_CHALLENGE_UNSUPPORTED',400);

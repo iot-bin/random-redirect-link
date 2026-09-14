@@ -1,17 +1,18 @@
 import 'server-only';
 import { cookies } from 'next/headers';
-import { bootstrap, isConfigured } from './bootstrap';
+import { getPublicConfiguration } from './bootstrap';
+import { AuthError } from './auth-error';
+export { AuthError } from './auth-error';
 export const ACCESS_COOKIE = 'console-access';
 export const REFRESH_COOKIE = 'console-refresh';
 export const cookieOptions = { httpOnly: true, secure: process.env.NODE_ENV === 'production', sameSite: 'strict' as const, path: '/' };
-export class AuthError extends Error {
-  constructor(public code: string, public status = 401) { super(code); }
-}
 export async function cognito(operation: string, body: Record<string, unknown>) {
-  if (!isConfigured()) throw new AuthError('CONFIG_ERROR', 503);
+  const bootstrap = await getPublicConfiguration();
+  const clientOperations = ['InitiateAuth', 'RespondToAuthChallenge', 'ForgotPassword', 'ConfirmForgotPassword', 'RevokeToken'];
+  const payload = clientOperations.includes(operation) ? {...body, ClientId: bootstrap.cognitoClientId} : body;
   const response = await fetch('https://cognito-idp.' + bootstrap.region + '.amazonaws.com/', {
     method: 'POST', headers: { 'Content-Type': 'application/x-amz-json-1.1', 'X-Amz-Target': 'AWSCognitoIdentityProviderService.' + operation },
-    body: JSON.stringify(body), cache: 'no-store', signal: AbortSignal.timeout(10000),
+    body: JSON.stringify(payload), cache: 'no-store', redirect: 'error', signal: AbortSignal.timeout(10000),
   });
   const result = await response.json();
   if (!response.ok) {
@@ -39,7 +40,7 @@ export async function accessToken(refresh = false): Promise<string> {
   const token = jar.get(REFRESH_COOKIE)?.value;
   if (!token) throw new AuthError('SESSION_EXPIRED');
   try {
-    const result = await cognito('InitiateAuth', {ClientId:bootstrap.cognitoClientId,AuthFlow:'REFRESH_TOKEN_AUTH',AuthParameters:{REFRESH_TOKEN:token}});
+    const result = await cognito('InitiateAuth', {AuthFlow:'REFRESH_TOKEN_AUTH',AuthParameters:{REFRESH_TOKEN:token}});
     await saveTokens(result.AuthenticationResult ?? {});
     return result.AuthenticationResult.AccessToken;
   } catch (error) {

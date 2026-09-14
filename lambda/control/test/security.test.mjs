@@ -12,7 +12,7 @@ function fixture(role='member',grant='viewer') {
     if(expected!==undefined && (records.get(k)?.version??0)!==expected) throw Object.assign(new Error('conflict'),{name:'ConditionalCheckFailedException'});
     records.set(k,v);
   },audit:async a=>audit.push(a),listMembers:async()=>[],listAudit:async()=>audit};
-  const handler=createHandler({db,upstream:async(...args)=>{calls.push(args);return {statusCode:200,payload:{ok:true}};},users:{exists:async()=>true},apiIds:['abc123'],clientId:'client',issuer:'issuer',now:()=>1000000,logger:{error(){}}});
+  const handler=createHandler({db,upstream:async(...args)=>{calls.push(args);return {statusCode:200,payload:{ok:true}};},users:{exists:async()=>true},apiIds:['abc123'],region:'ap-southeast-1',clientId:'client',issuer:'issuer',now:()=>1000000,logger:{error(){}}});
   const event=(method='GET',path='/me',body,claims={})=>({rawPath:path,body:body===undefined?undefined:JSON.stringify(body),requestContext:{http:{method},authorizer:{jwt:{claims:{sub,token_use:'access',client_id:'client',iss:'issuer',exp:2000,origin_jti:'session-one',...claims}}}}});
   return {handler,event,records,calls,audit,db};
 }
@@ -24,7 +24,7 @@ test('rejects absent authorizer, ID tokens, wrong clients and missing expiry',as
 });
 test('public configuration contains no API IDs or membership data',async()=>{
   const f=fixture();const r=await f.handler({rawPath:'/public/site',requestContext:{http:{method:'GET'}}});
-  assert.deepEqual(JSON.parse(r.body),configuration.site);
+  assert.deepEqual(JSON.parse(r.body),{...configuration.site,region:'ap-southeast-1',cognitoClientId:'client'});
 });
 test('viewer can read own environment but cannot mutate, batch or cross environments',async()=>{
   const f=fixture();

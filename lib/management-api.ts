@@ -1,12 +1,12 @@
 import 'server-only';
 import { NextResponse } from 'next/server';
-import { bootstrap, isConfigured } from './bootstrap';
+import { getManagementApiUrl } from './bootstrap';
 import { accessToken, AuthError } from './session';
 import { cookies } from 'next/headers';
 import { ACCESS_COOKIE } from './session';
 export async function managementFetch(path: string, method = 'GET', body?: unknown, refresh = true) {
-  if (!isConfigured()) throw new AuthError('CONFIG_ERROR',503);
-  const send = (token: string) => fetch(bootstrap.managementApiUrl.replace(/\/+$/, '') + path, {
+  const managementApiUrl = getManagementApiUrl();
+  const send = (token: string) => fetch(managementApiUrl + path, {
     method, headers: {Authorization:'Bearer '+token,'Content-Type':'application/json'},
     body:body === undefined ? undefined : JSON.stringify(body),cache:'no-store',redirect:'error',signal:AbortSignal.timeout(20000),
   });

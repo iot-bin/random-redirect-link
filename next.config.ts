@@ -1,7 +1,5 @@
 import type { NextConfig } from "next";
 
-const nextConfig: NextConfig = {
-  outputFileTracingIncludes: { '/*': ['./config/bootstrap.local.json'] },
-};
+const nextConfig: NextConfig = {};
 
 export default nextConfig;

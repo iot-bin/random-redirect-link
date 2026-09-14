@@ -16,7 +16,7 @@ const identity = {
   },
 };
 export function createHandler({ db = repository, upstream = callUpstream, users = identity,
-  apiIds = (process.env.BACKEND_API_IDS ?? '').split(','), clientId = process.env.CLIENT_ID,
+  apiIds = (process.env.BACKEND_API_IDS ?? '').split(','), clientId = process.env.CLIENT_ID, region = process.env.AWS_REGION,
   issuer = 'https://cognito-idp.' + process.env.AWS_REGION + '.amazonaws.com/' + process.env.USER_POOL_ID,
   now = Date.now, logger = console } = {}) {
   return async (event) => {
@@ -27,7 +27,7 @@ export function createHandler({ db = repository, upstream = callUpstream, users 
     try {
       if (method === 'GET' && path === '/public/site') {
         const config = await db.get('CONFIG');
-        return json(200, { title: config?.site?.title ?? '', description: config?.site?.description ?? '' });
+        return json(200, { title: config?.site?.title ?? '', description: config?.site?.description ?? '', region, cognitoClientId: clientId });
       }
       // Claims originate exclusively from API Gateway's JWT authorizer, never request headers/body.
       const claims = event.requestContext?.authorizer?.jwt?.claims;

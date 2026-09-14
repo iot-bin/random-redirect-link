@@ -1,5 +1,5 @@
 // Explicit operator action only. Does not create users, send mail, or alter backend APIs.
-import { readFile, writeFile } from 'node:fs/promises';
+import { readFile } from 'node:fs/promises';
 import { DynamoDBClient } from '@aws-sdk/client-dynamodb';
 import { DynamoDBDocumentClient, TransactWriteCommand } from '@aws-sdk/lib-dynamodb';
 import { CognitoIdentityProviderClient, AdminGetUserCommand } from '@aws-sdk/client-cognito-identity-provider';
@@ -26,5 +26,4 @@ const db = DynamoDBDocumentClient.from(new DynamoDBClient({ region }));
 await db.send(new TransactWriteCommand({ TransactItems: [
   ['CONFIG',config], ['OWNER',{sub}], ['MEMBER#'+sub,{sub,email:ownerUsername,role:'admin',active:true,grants:{},version:1}],
 ].map(([sk,item]) => ({Put:{TableName:outputs.ConfigurationTable,Item:{...item,pk,sk},ConditionExpression:'attribute_not_exists(pk)'}})) }));
-await writeFile(new URL('../../../config/bootstrap.local.json', import.meta.url), JSON.stringify({region,managementApiUrl:outputs.ManagementApiUrl,cognitoClientId:outputs.CognitoClientId},null,2)+'\n');
-console.log('Workspace initialized. Deployment coordinates written to ignored local configuration.');
+console.log('Workspace initialized. Set MANAGEMENT_API_URL to the ManagementApiUrl stack output in your hosting platform.');
