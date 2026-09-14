@@ -71,12 +71,12 @@ export default function LoginPage() {
   }
 
   return (
-    <div style={styles.page}>
+    <div className="login-page">
       <div className="login-toolbar">
         <LanguageSwitcher compact />
         <ThemeToggle />
       </div>
-      <div style={styles.container}>
+      <div className="login-content" style={styles.container}>
         <div style={styles.logoRow}>
           <Image
             src="/logo.webp"
@@ -146,15 +146,6 @@ export default function LoginPage() {
 }
 
 const styles: Record<string, React.CSSProperties> = {
-  page: {
-    minHeight: '100vh',
-    background: 'var(--background)',
-    color: 'var(--text-primary)',
-    display: 'flex',
-    alignItems: 'center',
-    justifyContent: 'center',
-    padding: '24px 16px',
-  },
   container: {
     maxWidth: 400,
     width: '100%',

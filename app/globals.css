@@ -469,15 +469,27 @@ select:focus-visible {
   z-index: 50;
 }
 
+.login-page {
+  min-height: 100svh;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 24px;
+  padding: max(16px, env(safe-area-inset-top)) max(16px, env(safe-area-inset-right)) max(24px, env(safe-area-inset-bottom)) max(16px, env(safe-area-inset-left));
+  background: var(--background);
+  color: var(--text-primary);
+}
+.login-content { margin-block: auto; padding-block: 16px; }
 .login-toolbar {
-  position: fixed;
-  top: 16px;
-  right: 16px;
+  position: relative;
+  align-self: flex-end;
+  flex-shrink: 0;
   z-index: 50;
   display: flex;
   align-items: center;
   gap: 8px;
 }
+.login-toolbar .theme-toggle-btn { width: 42px; height: 42px; }
 
 .sidebar-backdrop,
 .mobile-header {
