@@ -1,13 +1,15 @@
 # db-rebuild 管理中心
 
 本分支的目标架构是 Cognito + DynamoDB + 管理 Lambda + IAM，不使用 Secrets Manager。
-代码变更不等于已经部署。`config/bootstrap.local.json` 留空时，登录会明确报未配置。
+代码变更不等于已经部署。`MANAGEMENT_API_URL` 未设置时，登录会明确报未配置。
 
 ## 部署记录
 
-仓库仅保留空的 `config/bootstrap.json` 默认值和虚构的工作空间示例。复制默认文件为已忽略的 `config/bootstrap.local.json`，在本地填写；真实工作空间输入使用已忽略的 `config/workspace.local.json`。修改后重启应用，初始化脚本也只生成本地 bootstrap 文件。
+在 Vercel 对应环境中设置服务端变量 `MANAGEMENT_API_URL`，值取管理栈输出 `ManagementApiUrl`。本地开发复制 `.env.example` 为已忽略的 `.env.local` 并填写该值。真实工作空间输入继续使用已忽略的 `config/workspace.local.json`。
 
-部署时，通过私有构建流程在构建前提供本地 bootstrap 文件，Next.js 会将其包含在服务端部署产物中。不要公开构建产物或把该文件放入 `public/`。仅从 Git 构建且未提供本地配置时，登录会明确报未配置；这个配置机制不要求平台环境变量或长期凭据。
+`/public/site` 只公开站点标题、描述、Region 和 Cognito Client ID。Next.js 按运行实例缓存有效结果 60 秒，并合并并发请求；失败不缓存、过期结果不回退使用。环境、权限和会话请求仍不缓存。这个 HTTPS 入口决定认证配置来源，只能由部署者设置，不能接受浏览器请求提供的地址。
+
+先部署更新后的管理 Lambda，再填写 Vercel 变量并从 Git 部署前端。无需本地 bootstrap JSON、文件追踪配置或预构建上传。修改变量后本地重启、Vercel 重新部署。旧管理 API 缺少登录字段时会拒绝登录，必须先升级后端。
 
 实际账号、资源名称、服务地址、管理员信息和测试结果保存在 Git 外的私有运维记录中。生产迁移前应先部署隔离测试资源；带 Retain 的资源需要单独清理。
 
@@ -82,9 +84,9 @@ node lambda/control/scripts/initialize.mjs stack-outputs.json config/workspace.e
 ```
 
 初始化脚本只查询已存在的用户，使用一次 DynamoDB 事务创建 CONFIG/OWNER/MEMBER，
-不会覆盖已有记录，也不会创建用户或发邮件。它生成仅本地使用的 `config/bootstrap.local.json`。
+不会覆盖已有记录，也不会创建用户、发邮件或生成前端配置文件。
 使用本地 AWS 标准凭据链，执行前明确选择 AWS_PROFILE=your-aws-profile、AWS_REGION=ap-southeast-1。
-若事务成功后写本地配置失败，手动从 Outputs 填写 bootstrap，不要删除已创建的数据重跑。
+初始化完成后，从 Outputs 取得 ManagementApiUrl 并设置 MANAGEMENT_API_URL。
 
 ## 安全切换顺序
 
@@ -98,7 +100,7 @@ WRITE_DISABLED 等其他值。这段短暂窗口管理操作可能不可用，�
 
 验证未签名、旧 Bearer、错误角色都被拒绝；正确管理角色可读写，Public API 仍可跳转。
 检查每个 API 的所有 routes、integrations 和 Lambda 调用入口，不能遗留绕过路径。
-完成后移除 ADMIN_TOKEN 并发布已填写 bootstrap 的前端。最后清理 Vercel 的旧业务环境变量。
+完成后移除 ADMIN_TOKEN 并发布已设置 MANAGEMENT_API_URL 的前端。最后清理 Vercel 的旧业务环境变量。
 
 回滚时先保持路由 AWS_IAM，再恢复旧函数包与旧令牌配置；确认 handler 已恢复 Token 校验后，
 才恢复原 API 路由认证设置及旧前端部署。禁止先移除 API 认证再恢复旧 handler。
@@ -110,7 +112,7 @@ WRITE_DISABLED 等其他值。这段短暂窗口管理操作可能不可用，�
 删除 Admin Lambda 的 ADMIN_TOKEN。PUBLIC API 与原表绑定不变。
 保留 Lambda TABLE_NAME/LINKS_INDEX_NAME/WRITE_DISABLED，并新增非敏感 MANAGEMENT_ROLE_ARN。
 管理 Lambda 的表名、User Pool ID、Client ID、工作空间和 API allowlist 由 SAM 注入。
-Vercel 不保存长期后台密钥；用户会话令牌仍会短暂经过 Next.js 运行环境。
+Vercel 仅保存非敏感的 MANAGEMENT_API_URL，不保存长期后台密钥；用户会话令牌仍会短暂经过 Next.js 运行环境。
 
 ## 第一版范围
 

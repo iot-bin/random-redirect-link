@@ -72,8 +72,9 @@ public/              静态资源，包括项目 favicon
 `CONSOLE_PASSWORD`、`API_TARGETS`、`DEFAULT_TARGET_ID`、`SITE_TITLE` 或 `SITE_DESCRIPTION`。
 
 先按 [管理中心部署与迁移](docs/control-plane.zh-CN.md) 创建独立管理栈、初始化所有者和环境配置，
-再填写 `config/bootstrap.local.json` 中的区域、管理 API URL 和 Cognito Client ID。
-这三个值都是非敏感启动坐标，可提交到仓库；文件留空时应用拒绝登录。
+再在 Vercel（本地使用 `.env.local`）设置服务端变量 `MANAGEMENT_API_URL`，值取管理栈输出。
+应用从 `/public/site` 获取 Region 与 Cognito Client ID；缺少配置时拒绝登录。
+可以直接从 Git 部署，无需本地 JSON 配置或上传预构建产物。
 
 环境、站点标题和成员权限在管理中心编辑，无需重新部署前端。
 默认环境和分页数量按用户保存在数据库；语言和主题继续保存在浏览器。
@@ -86,7 +87,7 @@ npm install
 npm run dev
 ```
 
-初始化管理栈与 bootstrap 配置后，打开 `http://localhost:3000`，使用受邀的 Cognito 账号登录。
+初始化管理栈与 入口配置后，打开 `http://localhost:3000`，使用受邀的 Cognito 账号登录。
 
 常用检查命令：
 

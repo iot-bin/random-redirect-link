@@ -1,14 +1,15 @@
 # db-rebuild management plane
 
 This branch uses Cognito, DynamoDB, a control Lambda and IAM. Secrets Manager and shared
-Admin Tokens are not used. Source changes do not deploy resources. Blank
-`config/bootstrap.local.json` coordinates deliberately prevent sign-in.
+Admin Tokens are not used. Source changes do not deploy resources. Missing `MANAGEMENT_API_URL` deliberately prevents sign-in.
 
 ## Deployment records
 
-The repository contains only blank `config/bootstrap.json` defaults and fictional workspace examples. Copy the defaults to ignored `config/bootstrap.local.json` and fill them locally; keep real workspace inputs in ignored `config/workspace.local.json`. Restart the app after changes. The initializer writes the local bootstrap file.
+Set the server-only `MANAGEMENT_API_URL` in the hosting platform to the management stack's `ManagementApiUrl` output. For local development, copy `.env.example` to ignored `.env.local` and set that value. Keep real workspace inputs in ignored `config/workspace.local.json`.
 
-For deployment, supply the local bootstrap file through a private build process before building. Next.js traces it into the server artifact. Do not publish build artifacts or place this file under `public/`. A Git-only deployment without local configuration intentionally cannot sign in; no platform environment variables or long-lived credentials are required by this configuration mechanism.
+The management service exposes only title, description, Region and Cognito Client ID at `/public/site`. Next.js caches valid responses for 60 seconds per instance and coalesces concurrent requests. Failures are not cached; expired configuration is not reused. Authenticated environment, permission and session requests remain uncached. This trusted operator-configured HTTPS endpoint is the source of authentication configuration and must not come from user requests.
+
+Deploy the updated control Lambda first, then set the variable for the intended Vercel environment and deploy from Git. No local bootstrap JSON, tracing override or prebuilt upload is required. Restart local development after changing the variable; redeploy Vercel after changing it. An older control API without the login fields fails closed until upgraded.
 
 Keep account IDs, resource names, endpoints, administrator details and test results in private operational records outside Git. Deploy isolated test resources before production migration. Retained resources require explicit cleanup.
 
@@ -60,8 +61,8 @@ node lambda/control/scripts/initialize.mjs stack-outputs.json config/workspace.e
 
 The script uses the standard local AWS credential chain; explicitly select the intended profile
 and region. It verifies an existing enabled owner, atomically creates three records without
-overwriting existing data, and writes public bootstrap coordinates. It does not create users
-or send mail. If only the final file write fails, recover bootstrap from Outputs without deleting data.
+overwriting existing data. It does not create users, send mail or write frontend configuration.
+Set MANAGEMENT_API_URL from the stack output after initialization.
 The example API/domain mappings require live verification before use.
 
 ## Cutover and rollback
@@ -91,6 +92,6 @@ a Cognito user without membership: retrieve its sub and add membership with PUT 
 It does not yet implement self-registration, SSO, mandatory MFA_SETUP, multiple workspaces,
 or audit export. Do not require MFA at pool level until the MFA_SETUP challenge is implemented.
 
-No Vercel business secrets are needed. Region, management URL and Cognito client ID are committed
-public bootstrap coordinates. TABLE_NAME, LINKS_INDEX_NAME, WRITE_DISABLED and MANAGEMENT_ROLE_ARN
+Vercel stores only MANAGEMENT_API_URL, a non-secret connection address. Region and Cognito client ID
+are discovered from the management service and are not committed to Git. TABLE_NAME, LINKS_INDEX_NAME, WRITE_DISABLED and MANAGEMENT_ROLE_ARN
 remain AWS deployment settings. The control stack injects its own table/pool/client IDs and allowlist.

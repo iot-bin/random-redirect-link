@@ -74,8 +74,9 @@ This branch uses Cognito, a DynamoDB management plane, and IAM backend authentic
 The console no longer reads CONSOLE_PASSWORD, API_TARGETS, DEFAULT_TARGET_ID, SITE_TITLE or SITE_DESCRIPTION.
 
 Follow [Management-plane deployment](docs/control-plane.en.md). Initialize the workspace,
-then fill `config/bootstrap.local.json` with the region, management API URL and Cognito client ID.
-These are public coordinates, not secrets. Blank coordinates deliberately prevent sign-in.
+then set the server-only `MANAGEMENT_API_URL` to the stack output in Vercel (or `.env.local`).
+The public `/public/site` endpoint supplies Region and Cognito Client ID; missing configuration prevents sign-in.
+Git deployments need no local JSON file or prebuilt upload.
 Site and environment configuration and member grants are edited in the console without a redeploy.
 Default environment and page size are stored per user; language and theme remain browser preferences.
 
@@ -86,7 +87,7 @@ npm install
 npm run dev
 ```
 
-After initializing the management stack and bootstrap configuration, open `http://localhost:3000` and sign in with your invited Cognito account.
+After initializing the management stack and entry-point configuration, open `http://localhost:3000` and sign in with your invited Cognito account.
 
 Useful checks:
 
