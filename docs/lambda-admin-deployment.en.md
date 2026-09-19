@@ -1,14 +1,16 @@
 # Admin Lambda Deployment Guide
 
+> `db-rebuild`: token authentication instructions below describe the previous architecture. Use [the management-plane migration guide](control-plane.en.md) for the IAM migration and rollback order.
+
 [简体中文](lambda-admin-deployment.zh-CN.md) | English
 
 This guide packages and deploys the modular `random-redirect-link-admin` Lambda
 source and verifies its API Gateway integration. The examples use:
 
-- AWS CLI profile: `mcp-prod-02`
+- AWS CLI profile: `your-aws-profile`
 - Region: `ap-southeast-1`
 - Function: `random-redirect-link-admin`
-- HTTP API ID: `h2ocs5m4ra`
+- HTTP API ID: `ADMIN_API_ID`
 - DynamoDB table: `random-redirect-link`
 - Listing GSI: `links-by-path`
 
@@ -78,12 +80,12 @@ Get-ChildItem -LiteralPath $verifyDirectory
 ## 4. Verify the AWS Target
 
 ```powershell
-aws sts get-caller-identity --profile mcp-prod-02
+aws sts get-caller-identity --profile your-aws-profile
 
 aws lambda get-function-configuration `
   --function-name random-redirect-link-admin `
   --region ap-southeast-1 `
-  --profile mcp-prod-02 `
+  --profile your-aws-profile `
   --query "{Runtime:Runtime,Handler:Handler,Timeout:Timeout,State:State,LastUpdateStatus:LastUpdateStatus}"
 ```
 
@@ -145,7 +147,7 @@ $backupPath = Join-Path $backupDirectory "random-redirect-link-admin-$timestamp.
 $codeUrl = aws lambda get-function `
   --function-name random-redirect-link-admin `
   --region ap-southeast-1 `
-  --profile mcp-prod-02 `
+  --profile your-aws-profile `
   --query "Code.Location" `
   --output text
 
@@ -163,12 +165,12 @@ aws lambda update-function-code `
   --function-name random-redirect-link-admin `
   --zip-file "fileb://lambda/admin/dist/random-redirect-link-admin.zip" `
   --region ap-southeast-1 `
-  --profile mcp-prod-02
+  --profile your-aws-profile
 
 aws lambda wait function-updated `
   --function-name random-redirect-link-admin `
   --region ap-southeast-1 `
-  --profile mcp-prod-02
+  --profile your-aws-profile
 ```
 
 Verify `State=Active` and `LastUpdateStatus=Successful` before testing.
@@ -190,9 +192,9 @@ Check that every route has an integration target:
 
 ```powershell
 aws apigatewayv2 get-routes `
-  --api-id h2ocs5m4ra `
+  --api-id ADMIN_API_ID `
   --region ap-southeast-1 `
-  --profile mcp-prod-02 `
+  --profile your-aws-profile `
   --query "Items[].{Route:RouteKey,Target:Target}" `
   --output table
 ```
@@ -209,7 +211,7 @@ The following flow creates a temporary fixed link, disables it, batch-enables
 it, and deletes it. Supply the token interactively:
 
 ```powershell
-$adminBaseUrl = "https://h2ocs5m4ra.execute-api.ap-southeast-1.amazonaws.com"
+$adminBaseUrl = "https://ADMIN_API_ID.execute-api.ap-southeast-1.amazonaws.com"
 $secureToken = Read-Host "Admin token" -AsSecureString
 $adminToken = [Net.NetworkCredential]::new("", $secureToken).Password
 $headers = @{ Authorization = "Bearer $adminToken" }
@@ -260,7 +262,7 @@ Confirm HTTP `201`, `enabled=false`, no batch failures, and `deleted=true`.
 aws logs tail "/aws/lambda/random-redirect-link-admin" `
   --since 15m `
   --region ap-southeast-1 `
-  --profile mcp-prod-02
+  --profile your-aws-profile
 ```
 
 If the deployment fails, upload the backup ZIP from section 6 with

@@ -66,9 +66,9 @@ export function SettingsPanel({
       <div className="settings-list">
         <div className="settings-row">
           <div>
-            <label id="settings-environment-label" htmlFor="settings-environment">
+            <span className="dropdown-field-title" id="settings-environment-label">
               {t('settings.defaultEnvironment')}
-            </label>
+            </span>
             <p>{t('settings.defaultEnvironmentDescription')}</p>
           </div>
           <DropdownSelect
@@ -83,7 +83,7 @@ export function SettingsPanel({
 
         <div className="settings-row">
           <div>
-            <label htmlFor="settings-language">{t('settings.language')}</label>
+            <span className="dropdown-field-title">{t('settings.language')}</span>
             <p>{t('settings.languageDescription')}</p>
           </div>
           <DropdownSelect<Locale>
@@ -100,7 +100,7 @@ export function SettingsPanel({
 
         <div className="settings-row">
           <div>
-            <label htmlFor="settings-theme">{t('settings.theme')}</label>
+            <span className="dropdown-field-title">{t('settings.theme')}</span>
             <p>{t('settings.themeDescription')}</p>
           </div>
           <DropdownSelect<ThemePreference>
@@ -114,7 +114,7 @@ export function SettingsPanel({
 
         <div className="settings-row">
           <div>
-            <label htmlFor="settings-page-size">{t('settings.pageSize')}</label>
+            <span className="dropdown-field-title">{t('settings.pageSize')}</span>
             <p>{t('settings.pageSizeDescription')}</p>
           </div>
           <DropdownSelect

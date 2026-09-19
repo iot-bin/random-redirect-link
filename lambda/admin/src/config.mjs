@@ -1,5 +1,5 @@
 export const TABLE_NAME = process.env.TABLE_NAME;
-export const ADMIN_TOKEN = process.env.ADMIN_TOKEN;
+export const MANAGEMENT_ROLE_ARN = process.env.MANAGEMENT_ROLE_ARN;
 export const LINKS_INDEX_NAME = process.env.LINKS_INDEX_NAME || "links-by-path";
 
 export const LIST_PARTITION_ATTRIBUTE = "listPk";
@@ -14,5 +14,5 @@ export const MAX_TARGET_URL_LENGTH = 4096;
 export const BATCH_ACTIONS = new Set(["enable", "disable", "delete", "restore"]);
 
 export function hasRequiredConfig() {
-  return Boolean(TABLE_NAME && ADMIN_TOKEN);
+  return Boolean(TABLE_NAME && MANAGEMENT_ROLE_ARN);
 }

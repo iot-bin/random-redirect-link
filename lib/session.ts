@@ -1,60 +1,52 @@
-const SESSION_TTL_SECONDS = 60 * 60 * 24 * 7;
-const encoder = new TextEncoder();
-
-function bytesToHex(bytes: ArrayBuffer): string {
-  return Array.from(new Uint8Array(bytes))
-    .map((byte) => byte.toString(16).padStart(2, '0'))
-    .join('');
-}
-
-function hexToBytes(value: string): Uint8Array<ArrayBuffer> | null {
-  if (!/^[a-f0-9]+$/i.test(value) || value.length % 2 !== 0) return null;
-
-  const bytes = new Uint8Array(new ArrayBuffer(value.length / 2));
-  for (let index = 0; index < value.length; index += 2) {
-    bytes[index / 2] = Number.parseInt(value.slice(index, index + 2), 16);
+import 'server-only';
+import { cookies } from 'next/headers';
+import { getPublicConfiguration } from './bootstrap';
+import { AuthError } from './auth-error';
+export { AuthError } from './auth-error';
+export const ACCESS_COOKIE = 'console-access';
+export const REFRESH_COOKIE = 'console-refresh';
+export const cookieOptions = { httpOnly: true, secure: process.env.NODE_ENV === 'production', sameSite: 'strict' as const, path: '/' };
+export async function cognito(operation: string, body: Record<string, unknown>) {
+  const bootstrap = await getPublicConfiguration();
+  const clientOperations = ['InitiateAuth', 'RespondToAuthChallenge', 'ForgotPassword', 'ConfirmForgotPassword', 'RevokeToken'];
+  const payload = clientOperations.includes(operation) ? {...body, ClientId: bootstrap.cognitoClientId} : body;
+  const response = await fetch('https://cognito-idp.' + bootstrap.region + '.amazonaws.com/', {
+    method: 'POST', headers: { 'Content-Type': 'application/x-amz-json-1.1', 'X-Amz-Target': 'AWSCognitoIdentityProviderService.' + operation },
+    body: JSON.stringify(payload), cache: 'no-store', redirect: 'error', signal: AbortSignal.timeout(10000),
+  });
+  const result = await response.json();
+  if (!response.ok) {
+    const name = String(result.__type ?? '').split('#').pop();
+    const codes: Record<string,string> = { TooManyRequestsException:'AUTH_THROTTLED', LimitExceededException:'AUTH_THROTTLED', CodeMismatchException:'INVALID_CODE', ExpiredCodeException:'INVALID_CODE', InvalidPasswordException:'PASSWORD_POLICY', PasswordResetRequiredException:'RESET_REQUIRED' };
+    throw new AuthError(codes[name ?? ''] ?? 'INVALID_PASSWORD', name === 'TooManyRequestsException' ? 429 : 400);
   }
-  return bytes;
+  return result;
 }
-
-async function importKey(secret: string) {
-  return crypto.subtle.importKey(
-    'raw',
-    encoder.encode(secret),
-    { name: 'HMAC', hash: 'SHA-256' },
-    false,
-    ['sign', 'verify'],
-  );
+export async function saveTokens(result: {AccessToken?: string; RefreshToken?: string}) {
+  if (!result.AccessToken) throw new AuthError('SESSION_EXPIRED');
+  const jar = await cookies();
+  // AWS validates expiration. Keep the cookie to support refresh after inactivity.
+  jar.set(ACCESS_COOKIE, result.AccessToken, {...cookieOptions, maxAge: 7 * 86400});
+  if (result.RefreshToken) jar.set(REFRESH_COOKIE, result.RefreshToken, {...cookieOptions, maxAge: 7 * 86400});
+  jar.delete('session');
 }
-
-export async function createSessionToken(secret: string): Promise<string> {
-  const expiresAt = Date.now() + SESSION_TTL_SECONDS * 1000;
-  const payload = String(expiresAt);
-  const key = await importKey(secret);
-  const signature = await crypto.subtle.sign('HMAC', key, encoder.encode(payload));
-  return `${payload}.${bytesToHex(signature)}`;
+export async function clearSession() {
+  const jar = await cookies();
+  for (const name of [ACCESS_COOKIE,REFRESH_COOKIE,'session','console-challenge','console-mfa-setup']) jar.delete(name);
 }
-
-export async function verifySessionToken(
-  token: string,
-  secret: string,
-): Promise<boolean> {
-  const [payload, signatureHex, extra] = token.split('.');
-  if (!payload || !signatureHex || extra) return false;
-
-  const expiresAt = Number(payload);
-  if (!Number.isFinite(expiresAt) || expiresAt <= Date.now()) return false;
-
-  const signature = hexToBytes(signatureHex);
-  if (!signature) return false;
-
-  const key = await importKey(secret);
-  return crypto.subtle.verify(
-    'HMAC',
-    key,
-    signature,
-    encoder.encode(payload),
-  );
+export async function accessToken(refresh = false): Promise<string> {
+  const jar = await cookies();
+  if (!refresh && jar.get(ACCESS_COOKIE)?.value) return jar.get(ACCESS_COOKIE)!.value;
+  const token = jar.get(REFRESH_COOKIE)?.value;
+  if (!token) throw new AuthError('SESSION_EXPIRED');
+  try {
+    const result = await cognito('InitiateAuth', {AuthFlow:'REFRESH_TOKEN_AUTH',AuthParameters:{REFRESH_TOKEN:token}});
+    await saveTokens(result.AuthenticationResult ?? {});
+    return result.AuthenticationResult.AccessToken;
+  } catch (error) {
+    if (error instanceof AuthError && error.code === 'INVALID_PASSWORD') {
+      await clearSession(); throw new AuthError('SESSION_EXPIRED');
+    }
+    throw error;
+  }
 }
-
-export const SESSION_MAX_AGE_SECONDS = SESSION_TTL_SECONDS;

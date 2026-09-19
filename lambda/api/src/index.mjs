@@ -1,7 +1,7 @@
 import { hasRequiredConfig } from "./config.mjs";
 import { RedirectConfigError, isThrottlingError } from "./errors.mjs";
 import { redirect, text } from "./http.mjs";
-import { normalizePath } from "./link-path.mjs";
+import { normalizePath, requestPath } from "./link-path.mjs";
 import { resolveRedirect } from "./redirect.mjs";
 import { getLinkByPath } from "./repository.mjs";
 
@@ -27,7 +27,7 @@ export function createHandler({
       return text(405, "Method Not Allowed", { Allow: "GET, HEAD" });
     }
 
-    const rawPath = event?.rawPath ?? event?.path ?? "/";
+    const rawPath = requestPath(event);
     const path = normalizePath(rawPath);
 
     if (!path) {

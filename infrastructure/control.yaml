@@ -1,0 +1,181 @@
+AWSTemplateFormatVersion: '2010-09-09'
+Transform: AWS::Serverless-2016-10-31
+Description: Cognito and DynamoDB management plane; no shared backend secrets.
+Parameters:
+  WorkspaceId:
+    Type: String
+    Default: main
+    AllowedPattern: '^[a-z0-9-]{1,40}$'
+  BackendApiIds:
+    Type: CommaDelimitedList
+    Description: Allowlisted existing Admin HTTP API IDs, in this region.
+  BackendInvokeArns:
+    Type: CommaDelimitedList
+    Description: Exact execute-api ARNs for the allowlisted Admin APIs, ending in /*/*/links*.
+Globals:
+  Function:
+    Runtime: nodejs24.x
+    Architectures: [x86_64]
+    Timeout: 25
+    MemorySize: 256
+Resources:
+  Configuration:
+    Type: AWS::DynamoDB::Table
+    DeletionPolicy: Retain
+    UpdateReplacePolicy: Retain
+    Properties:
+      BillingMode: PAY_PER_REQUEST
+      AttributeDefinitions:
+        - { AttributeName: pk, AttributeType: S }
+        - { AttributeName: sk, AttributeType: S }
+      KeySchema:
+        - { AttributeName: pk, KeyType: HASH }
+        - { AttributeName: sk, KeyType: RANGE }
+      TimeToLiveSpecification: { AttributeName: purgeAt, Enabled: true }
+      SSESpecification: { SSEEnabled: true }
+      PointInTimeRecoverySpecification: { PointInTimeRecoveryEnabled: true }
+  Audit:
+    Type: AWS::DynamoDB::Table
+    DeletionPolicy: Retain
+    UpdateReplacePolicy: Retain
+    Properties:
+      BillingMode: PAY_PER_REQUEST
+      AttributeDefinitions:
+        - { AttributeName: pk, AttributeType: S }
+        - { AttributeName: sk, AttributeType: S }
+      KeySchema:
+        - { AttributeName: pk, KeyType: HASH }
+        - { AttributeName: sk, KeyType: RANGE }
+      SSESpecification: { SSEEnabled: true }
+      PointInTimeRecoverySpecification: { PointInTimeRecoveryEnabled: true }
+  Users:
+    Type: AWS::Cognito::UserPool
+    DeletionPolicy: Retain
+    UpdateReplacePolicy: Retain
+    Properties:
+      UserPoolTier: LITE
+      UsernameAttributes: [email]
+      UsernameConfiguration: { CaseSensitive: false }
+      AutoVerifiedAttributes: [email]
+      AdminCreateUserConfig: { AllowAdminCreateUserOnly: true }
+      AccountRecoverySetting:
+        RecoveryMechanisms:
+          - { Name: verified_email, Priority: 1 }
+      MfaConfiguration: OPTIONAL
+      EnabledMfas: [SOFTWARE_TOKEN_MFA]
+      Policies:
+        PasswordPolicy:
+          MinimumLength: 12
+          RequireLowercase: true
+          RequireUppercase: true
+          RequireNumbers: true
+          RequireSymbols: true
+          TemporaryPasswordValidityDays: 7
+      Schema:
+        - { Name: email, AttributeDataType: String, Required: true, Mutable: true }
+  Client:
+    Type: AWS::Cognito::UserPoolClient
+    Properties:
+      UserPoolId: !Ref Users
+      GenerateSecret: false
+      PreventUserExistenceErrors: ENABLED
+      EnableTokenRevocation: true
+      ExplicitAuthFlows: [ALLOW_USER_PASSWORD_AUTH, ALLOW_REFRESH_TOKEN_AUTH]
+      AccessTokenValidity: 15
+      IdTokenValidity: 15
+      RefreshTokenValidity: 7
+      TokenValidityUnits: { AccessToken: minutes, IdToken: minutes, RefreshToken: days }
+      ReadAttributes: [email, email_verified]
+      WriteAttributes: [email]
+  ApiLogs:
+    Type: AWS::Logs::LogGroup
+    Properties: { RetentionInDays: 30 }
+  Api:
+    Type: AWS::Serverless::HttpApi
+    Properties:
+      StageName: $default
+      DefaultRouteSettings: { ThrottlingBurstLimit: 20, ThrottlingRateLimit: 10 }
+      AccessLogSettings:
+        DestinationArn: !GetAtt ApiLogs.Arn
+        Format: '{"requestId":"$context.requestId","route":"$context.routeKey","status":"$context.status"}'
+      Auth:
+        DefaultAuthorizer: Cognito
+        Authorizers:
+          Cognito:
+            IdentitySource: '$request.header.Authorization'
+            JwtConfiguration:
+              issuer: !Sub 'https://cognito-idp.${AWS::Region}.amazonaws.com/${Users}'
+              audience: [!Ref Client]
+  Control:
+    Type: AWS::Serverless::Function
+    Properties:
+      CodeUri: ../lambda/control
+      Handler: index.handler
+      Environment:
+        Variables:
+          CONFIG_TABLE: !Ref Configuration
+          AUDIT_TABLE: !Ref Audit
+          USER_POOL_ID: !Ref Users
+          CLIENT_ID: !Ref Client
+          WORKSPACE_ID: !Ref WorkspaceId
+          BACKEND_API_IDS: !Join [',', !Ref BackendApiIds]
+      Policies:
+        - Version: '2012-10-17'
+          Statement:
+            - Effect: Allow
+              Action: [dynamodb:GetItem, dynamodb:PutItem, dynamodb:Query]
+              Resource: !GetAtt Configuration.Arn
+            - Effect: Allow
+              Action: [dynamodb:PutItem, dynamodb:Query]
+              Resource: !GetAtt Audit.Arn
+            - Effect: Allow
+              Action: [cognito-idp:AdminGetUser, cognito-idp:AdminCreateUser]
+              Resource: !GetAtt Users.Arn
+            - Effect: Allow
+              Action: execute-api:Invoke
+              Resource: !Ref BackendInvokeArns
+      Events:
+        Management:
+          Type: HttpApi
+          Properties:
+            ApiId: !Ref Api
+            Path: /{proxy+}
+            Method: ANY
+            Auth:
+              AuthorizationScopes: [aws.cognito.signin.user.admin]
+        PublicSite:
+          Type: HttpApi
+          Properties:
+            ApiId: !Ref Api
+            Path: /public/site
+            Method: GET
+            Auth: { Authorizer: NONE }
+    Metadata:
+      BuildMethod: esbuild
+      BuildProperties:
+        EntryPoints: [src/index.mjs]
+        Format: esm
+        OutExtension: [.js=.mjs]
+        Target: node24
+  FunctionLogs:
+    Type: AWS::Logs::LogGroup
+    Properties:
+      LogGroupName: !Sub '/aws/lambda/${Control}'
+      RetentionInDays: 30
+Outputs:
+  ManagementApiUrl:
+    Value: !Sub 'https://${Api}.execute-api.${AWS::Region}.amazonaws.com'
+  CognitoClientId:
+    Value: !Ref Client
+  UserPoolId:
+    Value: !Ref Users
+  ConfigurationTable:
+    Value: !Ref Configuration
+  AuditTable:
+    Value: !Ref Audit
+  ManagementRoleArn:
+    Value: !GetAtt ControlRole.Arn
+  Region:
+    Value: !Ref AWS::Region
+  BackendApiIds:
+    Value: !Join [',', !Ref BackendApiIds]

@@ -1,11 +1,10 @@
 'use client';
 
 import Image from 'next/image';
-import { useEffect, useMemo, useState } from 'react';
+import { useEffect, useMemo, useRef, useState } from 'react';
 import { useRouter } from 'next/navigation';
 import { CreateLinkPanel } from '@/app/components/CreateLinkPanel';
 import {
-  ChevronRightIcon,
   CreateIcon,
   LinkIcon,
   LogoutIcon,
@@ -17,40 +16,55 @@ import {
 import { LinkManagerPanel } from '@/app/components/LinkManagerPanel';
 import { SettingsPanel } from '@/app/components/SettingsPanel';
 import { ThemeToggle } from '@/app/components/ThemeProvider';
-import { useConsolePreferences } from '@/app/components/useConsolePreferences';
+import { ControlPanel } from './ControlPanel';
+import { MfaPanel } from './MfaPanel';
+import { DropdownSelect } from './DropdownSelect';
+import { normalizePageSize } from '@/lib/console-preferences';
+import type { ConsoleContext } from './ConsoleLoader';
+import { controlCopy } from '@/lib/control-copy';
 import { useLocale } from '@/lib/i18n/LocaleProvider';
-import type { PublicApiTarget } from '@/lib/link-types';
+
 
 type ConsoleSection = 'create' | 'manage' | 'trash' | 'settings';
 
-interface ConsoleDashboardProps {
-  targets: PublicApiTarget[];
-  defaultTargetId: string | null;
+interface ConsoleDashboardProps extends ConsoleContext {
+  onConfigurationChange: () => void;
 }
 
 export function ConsoleDashboard({
   targets,
-  defaultTargetId,
+  defaultTargetId, preferences: savedPreferences, site, user, onConfigurationChange,
 }: ConsoleDashboardProps) {
   const router = useRouter();
-  const { t } = useLocale();
+  const { t, locale } = useLocale();
   const initialTargetId =
     targets.some((target) => target.id === defaultTargetId)
       ? defaultTargetId ?? ''
       : targets[0]?.id ?? '';
 
-  const [section, setSection] = useState<ConsoleSection>('create');
+  const [section, setSection] = useState<ConsoleSection>(targets.find(t => t.id === initialTargetId)?.canWrite ? 'create' : 'manage');
   const [managerInitialPath, setManagerInitialPath] = useState('');
   const [sidebarCollapsed, setSidebarCollapsed] = useState(false);
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
   const [logoutPending, setLogoutPending] = useState(false);
   const [logoutError, setLogoutError] = useState('');
-  const targetIds = useMemo(() => targets.map((target) => target.id), [targets]);
-  const { preferences, updatePreferences } = useConsolePreferences(
-    targetIds,
-    initialTargetId,
-  );
-  const { targetId: selectedTargetId, pageSize } = preferences;
+  const [preferences, setPreferences] = useState({
+    targetId: initialTargetId, pageSize: normalizePageSize(savedPreferences.pageSize),
+  });
+  const [preferenceError, setPreferenceError] = useState('');
+  const preferenceQueue = useRef<Promise<void>>(Promise.resolve());
+  function updatePreferences(next: typeof preferences) {
+    setPreferences(next);
+    setPreferenceError('');
+    preferenceQueue.current = preferenceQueue.current.catch(() => {}).then(async () => {
+      const response = await fetch('/api/control/preferences', {
+        method: 'PUT', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(next),
+      });
+      if (!response.ok) throw new Error('Preference save failed');
+    }).catch(() => setPreferenceError(t('api.unavailable')));
+  }
+  const { pageSize } = preferences;
+  const selectedTargetId = targets.some(t => t.id === preferences.targetId) ? preferences.targetId : initialTargetId;
 
   const selectedTarget = useMemo(
     () => targets.find((target) => target.id === selectedTargetId) ?? null,
@@ -89,6 +103,7 @@ export function ConsoleDashboard({
   }
 
   function changeTarget(targetId: string) {
+    if (section === 'create' && !targets.find(t => t.id === targetId)?.canWrite) setSection('manage');
     updatePreferences({ ...preferences, targetId });
     setManagerInitialPath('');
   }
@@ -148,13 +163,14 @@ export function ConsoleDashboard({
         <div className="sidebar-brand">
           <Image src="/logo.webp" alt="" width={38} height={38} priority />
           <div>
-            <strong>{t('dashboard.brand')}</strong>
+            <strong>{site.title || t('dashboard.brand')}</strong>
             <span>{t('dashboard.brandSubtitle')}</span>
           </div>
         </div>
 
         <nav className="sidebar-nav" aria-label={t('dashboard.mainNavigation')}>
-          <button
+          <span className="nav-active-indicator" aria-hidden="true" style={{ top: `${Math.max(0, (selectedTarget?.canWrite ? ['create','manage','trash','settings'] : ['manage','trash','settings']).indexOf(section)) * 44}px` }} />
+          {selectedTarget?.canWrite ? <button
             className={section === 'create' ? 'nav-item is-active' : 'nav-item'}
             type="button"
             title={t('dashboard.create')}
@@ -163,7 +179,7 @@ export function ConsoleDashboard({
           >
             <CreateIcon />
             <span>{t('dashboard.create')}</span>
-          </button>
+          </button> : null}
           <button
             className={section === 'manage' ? 'nav-item is-active' : 'nav-item'}
             type="button"
@@ -188,21 +204,6 @@ export function ConsoleDashboard({
         </nav>
 
         <div className="sidebar-spacer" />
-
-        <button
-          className="sidebar-environment-summary"
-          type="button"
-          onClick={() => navigate('settings')}
-          aria-label={t('dashboard.openEnvironmentSettings')}
-        >
-          <span className="sidebar-environment-icon"><LinkIcon /></span>
-          <span className="sidebar-environment-copy">
-            <small>{t('dashboard.environment')}</small>
-            <strong>{selectedTarget?.name || t('dashboard.environmentMissing')}</strong>
-            <span>{selectedTarget?.redirectBaseUrl || t('dashboard.configureTargets')}</span>
-          </span>
-          <ChevronRightIcon />
-        </button>
 
         <div className="sidebar-footer">
           <ThemeToggle />
@@ -230,10 +231,7 @@ export function ConsoleDashboard({
           >
             <MenuIcon />
           </button>
-          <div className="mobile-brand">
-            <Image src="/logo.webp" alt="" width={30} height={30} />
-            <strong>{t('dashboard.brand')}</strong>
-          </div>
+          <strong className="mobile-page-title">{copy.title}</strong>
           <ThemeToggle />
         </header>
 
@@ -242,11 +240,12 @@ export function ConsoleDashboard({
             <button className="icon-button sidebar-collapse" type="button" onClick={() => setSidebarCollapsed(!sidebarCollapsed)} aria-label={t(sidebarCollapsed ? 'dashboard.expandSidebar' : 'dashboard.collapseSidebar')} aria-expanded={!sidebarCollapsed}>
               <MenuIcon />
             </button>
-            <span>{selectedTarget?.name ?? t('common.noEnvironment')}</span>
-            <ChevronRightIcon />
-            <strong>{copy.title}</strong>
+            <DropdownSelect className="nav-environment-switcher" ariaLabel={t('dashboard.environment')} value={selectedTargetId} disabled={!targets.length}
+              options={targets.map(target=>({value:target.id,label:target.name,description:target.redirectBaseUrl.replace(/^https?:\/\//,'')}))}
+              onChange={changeTarget} />
           </div>
-          {section !== 'create' ? <button className="button button-primary" type="button" onClick={() => navigate('create')}><CreateIcon />{t('dashboard.create')}</button> : null}
+          <strong className="console-topbar-title">{copy.title}</strong>
+          <div className="console-topbar-actions">{section !== 'create' && selectedTarget?.canWrite ? <button className="button button-primary" type="button" onClick={() => navigate('create')}><CreateIcon />{t('dashboard.create')}</button> : null}</div>
         </div>
 
         <div className="page-header">
@@ -267,19 +266,22 @@ export function ConsoleDashboard({
           ) : null}
         </div>
 
+        {preferenceError ? <div className="alert alert-error" role="alert">{preferenceError}</div> : null}
         {logoutError ? (
           <div className="alert alert-error configuration-alert" role="alert">
             {logoutError}
           </div>
         ) : null}
 
+        {selectedTarget && !selectedTarget.canWrite ? <p className="alert" role="status">{controlCopy[locale].readonly}</p> : null}
         {targets.length === 0 ? (
           <div className="alert alert-error configuration-alert" role="alert">
             {t('dashboard.configurationError')}
           </div>
         ) : null}
 
-        {section === 'create' ? (
+        <div key={section} className="console-view">
+        {section === 'create' && selectedTarget?.canWrite ? (
           <CreateLinkPanel
             key={selectedTargetId}
             target={selectedTarget}
@@ -294,6 +296,7 @@ export function ConsoleDashboard({
             pageSize={pageSize}
           />
         ) : (
+          <div className="settings-stack">
           <SettingsPanel
             targets={targets}
             selectedTargetId={selectedTargetId}
@@ -301,7 +304,11 @@ export function ConsoleDashboard({
             onTargetChange={changeTarget}
             onPageSizeChange={changePageSize}
           />
+          <MfaPanel />
+          {user.role === 'admin' ? <ControlPanel onChange={onConfigurationChange} currentSub={user.sub} /> : null}
+          </div>
         )}
+        </div>
       </main>
     </div>
   );

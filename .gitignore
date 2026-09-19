@@ -12,6 +12,7 @@
 
 # testing
 /coverage
+/.verification/
 
 # next.js
 /.next/
@@ -44,3 +45,6 @@ yarn-error.log*
 # typescript
 *.tsbuildinfo
 next-env.d.ts
+
+# Private deployment configuration
+/config/*.local.json

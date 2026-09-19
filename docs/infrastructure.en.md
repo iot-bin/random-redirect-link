@@ -1,5 +1,7 @@
 # AWS SAM infrastructure
 
+> `db-rebuild`: token and Secrets Manager instructions below describe the previous architecture. Use [the management-plane migration guide](control-plane.en.md) for the current templates and deployment order.
+
 The root `template.yaml` defines the backend infrastructure for this project:
 
 - one DynamoDB table with the `links-by-path` global secondary index;
