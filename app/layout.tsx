@@ -6,6 +6,7 @@ import { LocaleProvider } from '@/lib/i18n/LocaleProvider';
 import { LOCALE_COOKIE, normalizeLocale } from '@/lib/i18n/config';
 import { getSiteSettings } from '@/lib/api-targets';
 import { messages } from '@/lib/i18n/messages';
+import { SpeedInsights } from '@vercel/speed-insights/next';
 
 const geistSans = Geist({
   variable: '--font-geist-sans',
@@ -56,6 +57,7 @@ export default async function RootLayout({
       </head>
       <body className={`${geistSans.variable} ${geistMono.variable}`}>
         <LocaleProvider initialLocale={locale}>{children}</LocaleProvider>
+        <SpeedInsights />
       </body>
     </html>
   );
