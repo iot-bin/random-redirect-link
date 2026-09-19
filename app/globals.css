@@ -2158,11 +2158,6 @@ select:focus-visible {
   .create-workspace.has-result { grid-template-columns: minmax(0, 1fr); }
   .result-panel { position: static; min-height: 0; }
 }
-@media (max-width: 900px) {
-  .console-topbar { margin: 0 0 20px; padding: 0 0 16px; min-height: 0; background: transparent; flex-wrap: wrap; }
-  .sidebar-collapse { display: none; }
-  .console-context { gap: 8px; }
-}
 @media (max-width: 700px) {
   .create-panel .link-form { grid-template-columns: minmax(0, 1fr); }
   .page-header { flex-wrap: wrap; gap: 12px; }
@@ -2203,10 +2198,9 @@ select:focus-visible {
 .console-topbar { display: grid; grid-template-columns: minmax(0, 1fr) auto minmax(0, 1fr); }
 .console-topbar-title { justify-self: center; text-align: center; font-size: 14px; font-weight: 550; }
 .console-topbar-actions { justify-self: end; min-width: 0; }
-.console-context .nav-environment-switcher { flex: 0 1 240px; min-width: 0; }
+.console-context .nav-environment-switcher { flex: 0 1 auto; min-width: 0; }
 @media (max-width: 900px) {
-  .console-topbar { grid-template-columns: minmax(0, 1fr) auto; gap: 12px; }
-  .console-topbar-title { display: none; }
+  .console-topbar { display: none; }
   .mobile-header { display: grid; grid-template-columns: 40px minmax(0, 1fr) 40px; gap: 12px; }
   .mobile-page-title { min-width: 0; text-align: center; font-size: 14px; font-weight: 550; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 }
@@ -2217,11 +2211,10 @@ select:focus-visible {
 .sidebar-nav .nav-item svg { width: 18px; height: 18px; flex-shrink: 0; }
 .sidebar-brand > div { min-width: 0; }
 .sidebar-brand strong { display: block; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
-.nav-environment-switcher { width: 240px; min-width: 0; }
-.nav-environment-switcher .dropdown-trigger { min-height: 36px; padding: 6px 10px; border-color: transparent; background: transparent; font-size: 13px; font-weight: 500; }
+.nav-environment-switcher { width: max-content; max-width: 240px; min-width: 0; }
+.nav-environment-switcher .dropdown-trigger { min-height: 36px; justify-content: flex-start; gap: 12px; padding: 6px 10px; border-color: transparent; background: transparent; font-size: 13px; font-weight: 500; }
 .nav-environment-switcher .dropdown-trigger:hover, .nav-environment-switcher .dropdown-trigger[aria-expanded="true"] { background: var(--surface-hover); }
 .nav-environment-switcher .dropdown-menu { min-width: 0; box-shadow: 0 8px 28px rgb(0 0 0 / .1); }
-@media (max-width: 700px) { .nav-environment-switcher { width: min(42vw, 240px); } }
 @media (prefers-reduced-motion: reduce) { .nav-active-indicator { transition: none; } }
 /* Short, restrained feedback; no delayed navigation or persistent transforms. */
 @keyframes console-fade-in { from { opacity: 0; } to { opacity: 1; } }
