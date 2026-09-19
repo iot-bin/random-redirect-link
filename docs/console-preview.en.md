@@ -2,7 +2,7 @@
 
 [Back to README](../README.md) | [简体中文](console-preview.zh-CN.md)
 
-Captured on 2026-09-11 from the local application with demo data. Domains, dates, and statuses are illustrative, not production metrics. Desktop viewport: 1440 × 1000; mobile: 390 × 844. Screenshots use the English console interface.
+Captured on 2026-09-19 from the local application with demo data. Domains, dates, and statuses are illustrative, not production metrics. Desktop viewport: 1440 × 1000; mobile: 390 × 844. Screenshots use the English console interface.
 
 ## Link management
 
@@ -30,7 +30,7 @@ Review soft-deleted records and restore them within retention; expired links nee
 
 ## Console settings
 
-Choose the default environment, language, theme, and page size. Preferences are saved in the current browser.
+Choose the default environment, language, theme, and page size. The default environment and page size are saved to your account; language and theme are saved in the current browser. Authenticator status is shown below these preferences.
 
 ![Console settings](images/en/console-settings.png)
 
@@ -42,7 +42,7 @@ Status badges remain distinct in the dark theme.
 
 ## Mobile layout
 
-Narrow screens use link cards and collapsible navigation.
+Narrow screens use link cards and collapsible navigation. The mobile header keeps the page title centered; the desktop environment switcher is hidden.
 
 <img src="images/en/console-mobile.png" alt="Mobile layout" width="390" />
 
