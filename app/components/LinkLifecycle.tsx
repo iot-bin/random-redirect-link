@@ -53,6 +53,7 @@ export function LifecycleDates({ record }: { record: LinkRecord }) {
         ['startsAt', record.startsAt],
         ['expiresAt', record.expiresAt],
       ] as const);
+  if (!dates.some(([, value]) => value && Number.isFinite(Date.parse(value)))) return null;
   return (
     <div className="lifecycle-dates">
       {dates.map(([key, value]) =>

@@ -437,7 +437,7 @@ select:focus-visible {
 
 .sidebar-footer {
   display: grid;
-  grid-template-columns: 42px minmax(0, 1fr);
+  grid-template-columns: minmax(0, 1fr);
   gap: 6px;
   padding-top: 14px;
   border-top: 1px solid var(--border-subtle);
@@ -503,10 +503,11 @@ select:focus-visible {
 }
 
 .page-header {
-  display: flex;
+  display: grid;
+  grid-template-columns: minmax(0, 1fr);
   align-items: flex-start;
   justify-content: space-between;
-  gap: 24px;
+  gap: 10px;
   margin-bottom: 24px;
 }
 
@@ -527,7 +528,7 @@ select:focus-visible {
 }
 
 .page-header p:not(.eyebrow) {
-  margin: 8px 0 0;
+  margin: 0;
   color: var(--text-secondary);
   font-size: 13px;
   line-height: 1.6;
@@ -537,10 +538,11 @@ select:focus-visible {
   display: inline-flex;
   align-items: center;
   gap: 8px;
-  max-width: 320px;
-  padding: 8px 11px;
+  max-width: 100%;
+  min-width: 0;
+  padding: 6px 8px;
   border: 1px solid var(--border);
-  border-radius: 999px;
+  border-radius: 6px;
   background: var(--surface);
   color: var(--text-secondary);
   text-decoration: none;
@@ -549,6 +551,9 @@ select:focus-visible {
   text-overflow: ellipsis;
   white-space: nowrap;
 }
+
+.domain-context { display: flex; align-items: center; flex-wrap: wrap; gap: 6px 10px; min-width: 0; color: var(--text-muted); font-size: 12px; }
+.current-domain > span { min-width: 0; overflow: hidden; text-overflow: ellipsis; }
 
 .current-domain:hover {
   color: var(--text-primary);
@@ -1854,9 +1859,10 @@ select:focus-visible {
     margin-bottom: 20px;
   }
 
-  .current-domain {
-    display: none;
-  }
+  .mode-control { flex-direction: column-reverse; flex-shrink: 0; gap: 4px !important; }
+  .mode-status { padding: 0; background: transparent; font-size: 11px; font-weight: 500; }
+  .toggle-card { gap: 12px; }
+  .toggle-card > span:first-child { min-width: 0; }
 }
 
 @media (max-width: 640px) {
@@ -2201,6 +2207,8 @@ select:focus-visible {
 .console-context .nav-environment-switcher { flex: 0 1 auto; min-width: 0; }
 @media (max-width: 900px) {
   .console-topbar { display: none; }
+  .page-header { display: block; margin: 0; }
+  .page-header p, .page-header .domain-context { display: none; }
   .mobile-header { display: grid; grid-template-columns: 40px minmax(0, 1fr) 40px; gap: 12px; }
   .mobile-page-title { min-width: 0; text-align: center; font-size: 14px; font-weight: 550; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 }
