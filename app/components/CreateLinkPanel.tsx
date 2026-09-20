@@ -153,14 +153,7 @@ export function CreateLinkPanel({
 
   return (
     <div className={result ? "create-workspace has-result" : "create-workspace"}>
-      <section className="panel create-panel" aria-labelledby="create-title">
-        <div className="panel-heading">
-          <div>
-            <h2 id="create-title">{t('create.title')}</h2>
-            <p>{t('create.description')}</p>
-          </div>
-        </div>
-
+      <section className="panel create-panel" aria-label={t('create.title')}>
         <form className="link-form" onSubmit={handleSubmit}>
           <div className="form-field">
             <label htmlFor="link-path">{t('create.path')}</label>

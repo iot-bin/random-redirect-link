@@ -206,7 +206,6 @@ export function ConsoleDashboard({
         <div className="sidebar-spacer" />
 
         <div className="sidebar-footer">
-          <ThemeToggle />
           <button
             className="sidebar-action"
             type="button"
@@ -245,15 +244,16 @@ export function ConsoleDashboard({
               onChange={changeTarget} />
           </div>
           <strong className="console-topbar-title">{copy.title}</strong>
-          <div className="console-topbar-actions">{section !== 'create' && selectedTarget?.canWrite ? <button className="button button-primary" type="button" onClick={() => navigate('create')}><CreateIcon />{t('dashboard.create')}</button> : null}</div>
+          <div className="console-topbar-actions"><ThemeToggle /></div>
         </div>
 
         <div className="page-header">
           <div>
-            <h1>{copy.title}</h1>
+            <h1 className="sr-only">{copy.title}</h1>
             <p>{copy.description}</p>
           </div>
-          {selectedTarget ? (
+          {selectedTarget ? (<div className="domain-context">
+            <span>{controlCopy[locale].domain}</span>
             <a
               className="current-domain"
               href={selectedTarget.redirectBaseUrl}
@@ -261,9 +261,9 @@ export function ConsoleDashboard({
               rel="noreferrer"
             >
               <LinkIcon />
-              {selectedTarget.redirectBaseUrl.replace(/^https?:\/\//, '')}
+              <span>{selectedTarget.redirectBaseUrl.replace(/^https?:\/\//, '')}</span>
             </a>
-          ) : null}
+          </div>) : null}
         </div>
 
         {preferenceError ? <div className="alert alert-error" role="alert">{preferenceError}</div> : null}
