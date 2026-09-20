@@ -26,6 +26,7 @@ interface DropdownSelectProps<Value extends string> {
   id?: string;
   disabled?: boolean;
   className?: string;
+  placeholder?: string;
 }
 
 export function DropdownSelect<Value extends string>({
@@ -36,6 +37,7 @@ export function DropdownSelect<Value extends string>({
   id,
   disabled = false,
   className,
+  placeholder,
 }: DropdownSelectProps<Value>) {
   const generatedId = useId();
   const listboxId = `${id ?? generatedId}-listbox`;
@@ -45,7 +47,7 @@ export function DropdownSelect<Value extends string>({
   const optionRefs = useRef<Array<HTMLButtonElement | null>>([]);
   const [open, setOpen] = useState(false);
   const [activeIndex, setActiveIndex] = useState(0);
-  const selectedIndex = Math.max(0, options.findIndex((option) => option.value === value));
+  const selectedIndex = options.findIndex((option) => option.value === value);
   const selectedOption = options[selectedIndex];
 
   useEffect(() => {
@@ -121,7 +123,7 @@ export function DropdownSelect<Value extends string>({
     }
   }, [activeIndex, open]);
 
-  function openMenu(index = selectedIndex) {
+  function openMenu(index = Math.max(0, selectedIndex)) {
     if (disabled || options.length === 0) return;
     setActiveIndex(index);
     setOpen(true);
@@ -136,7 +138,7 @@ export function DropdownSelect<Value extends string>({
   function handleTriggerKeyDown(event: React.KeyboardEvent<HTMLButtonElement>) {
     if (event.key === 'ArrowDown' || event.key === 'ArrowUp') {
       event.preventDefault();
-      const index = event.key === 'ArrowUp' ? options.length - 1 : selectedIndex;
+      const index = event.key === 'ArrowUp' ? options.length - 1 : Math.max(0, selectedIndex);
       openMenu(index);
     }
   }
@@ -187,7 +189,7 @@ export function DropdownSelect<Value extends string>({
         onClick={() => (open ? setOpen(false) : openMenu())}
         onKeyDown={handleTriggerKeyDown}
       >
-        <span>{selectedOption?.label ?? ariaLabel}</span>
+        <span>{selectedOption?.label ?? placeholder ?? ariaLabel}</span>
         <ChevronDownIcon className={open ? 'is-open' : undefined} />
       </button>
 
