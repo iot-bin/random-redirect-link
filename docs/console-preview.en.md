@@ -2,7 +2,7 @@
 
 [Back to README](../README.md) | [简体中文](console-preview.zh-CN.md)
 
-Captured on 2026-09-19 from the local application with demo data. Domains, dates, and statuses are illustrative, not production metrics. Desktop viewport: 1440 × 1000; mobile: 390 × 844. Screenshots use the English console interface.
+Captured on 2026-09-21 from the local application with demo data. Domains, dates, and statuses are illustrative, not production metrics. Desktop viewport: 1440 × 1000; mobile: 390 × 844. Screenshots use the English console interface. Management, member and audit images are cropped to their panels.
 
 ## Link management
 
@@ -33,6 +33,24 @@ Review soft-deleted records and restore them within retention; expired links nee
 Choose the default environment, language, theme, and page size. The default environment and page size are saved to your account; language and theme are saved in the current browser. Authenticator status is shown below these preferences.
 
 ![Console settings](images/en/console-settings.png)
+
+## Management service
+
+Configure the site title, description, default environment and allowed Admin API mapping.
+
+![Environment and site configuration](images/en/console-management.png)
+
+## Member permissions
+
+Invite members and assign viewer or editor access per environment. The owner account is protected.
+
+![Member permissions](images/en/console-members.png)
+
+## Recent operations
+
+Review example audit events with the actor, operation, environment and result.
+
+![Recent operations](images/en/console-audit.png)
 
 ## Dark mode
 
