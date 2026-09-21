@@ -12,6 +12,24 @@ Admin 路由使用 `AWS_IAM`。Control Lambda 校验成员与环境权限后，�
 
 模板创建资源，不会自动接管手动管理的资源。删除栈后，保留的表、用户池和产物桶需要单独清理。
 
+## 架构画布
+
+以下画布基于项目的 SAM 模板，由 AWS Infrastructure Composer 导出并经过图片清理，展示主要资源关联；省略日志、IAM 等辅助资源。连线表示模板关联，不代表完整请求流程或线上部署状态。
+
+### 短链后端
+
+![短链后端：Admin 与公共 HTTP API 分别连接 Lambda，共用 LinksTable](images/redirect-backend-cleaned.png)
+
+对应 [`template.yaml`](../template.yaml)。Admin API 使用 IAM 认证，公共 API 提供无需登录的 GET/HEAD 跳转。
+
+### 管理与认证服务
+
+![管理服务：HTTP API、Control Lambda、配置表、审计表以及 Cognito 用户池与客户端](images/control-plane-cleaned.png)
+
+对应 [`infrastructure/control.yaml`](../infrastructure/control.yaml)。管理路由使用 Cognito JWT 认证，`GET /public/site` 为匿名路由。图中的 `Cognito authorizer` 标签修正了 Composer 导出的显示占位符，未改变模板配置。
+
+Control Lambda 通过配置调用短链后端的 Admin API；该跨模板调用未在这两张画布中展示。部署产物桶模板 `infrastructure/artifacts.yaml` 不包含在图中。
+
 ## 验证与构建
 
 先安装三个 Lambda 子项目的依赖。使用独立的 SAM 构建目录和配置文件，避免部署错误的栈。

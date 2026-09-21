@@ -12,6 +12,24 @@ Admin routes require `AWS_IAM`. The control Lambda checks user membership and en
 
 Templates create resources; they do not automatically adopt manually managed resources. Retained tables, user pools and artifact buckets need explicit cleanup after stack deletion.
 
+## Architecture canvases
+
+These canvases were exported from the project's SAM templates using AWS Infrastructure Composer and cleaned up for documentation. They show the main resource relationships and omit supporting resources such as logs and IAM. Connections represent template relationships, not the complete request flow or live deployment state.
+
+### Redirect backend
+
+![Redirect backend: Admin and public HTTP APIs connect to separate Lambda functions sharing LinksTable](images/redirect-backend-cleaned.png)
+
+Source: [`template.yaml`](../template.yaml). The Admin API uses IAM authentication; the public API provides unauthenticated GET/HEAD redirects.
+
+### Management and authentication service
+
+![Management service: HTTP API, Control Lambda, configuration and audit tables, and Cognito user pool and client](images/control-plane-cleaned.png)
+
+Source: [`infrastructure/control.yaml`](../infrastructure/control.yaml). Management routes use Cognito JWT authentication; `GET /public/site` is unauthenticated. The `Cognito authorizer` label corrects a display placeholder in the Composer export without changing the template configuration.
+
+The Control Lambda calls the backend Admin API through configuration; this cross-template call is not shown in either canvas. The deployment artifact bucket template, `infrastructure/artifacts.yaml`, is also omitted.
+
 ## Validate and build
 
 Install dependencies for all three Lambda packages before building. Use separate SAM build directories and configuration files to avoid deploying the wrong stack.
