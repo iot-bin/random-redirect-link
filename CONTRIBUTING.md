@@ -21,11 +21,15 @@ Copy-Item .env.example .env.local
 npm run dev
 ```
 
+Set `MANAGEMENT_API_URL` in `.env.local` to an initialized test management stack; see
+[Management service deployment](docs/control-plane.en.md). Sign in with an invited Cognito account.
+
 For Lambda development:
 
 ```powershell
 pnpm --dir lambda/admin install --frozen-lockfile
 pnpm --dir lambda/api install --frozen-lockfile
+pnpm --dir lambda/control install --frozen-lockfile
 ```
 
 Use only local or explicitly authorized test infrastructure. Do not point a
@@ -44,10 +48,13 @@ pnpm --dir lambda/admin check
 pnpm --dir lambda/admin test
 pnpm --dir lambda/api check
 pnpm --dir lambda/api test
+pnpm --dir lambda/control test
+pnpm --dir lambda/control build
 ```
 
-When changing `template.yaml`, also run `sam validate --lint` if the AWS SAM CLI
-is available.
+When changing SAM templates, run `sam validate --lint --template-file <template>`
+for each changed SAM template if the CLI is available. Validate infrastructure with
+`cfn-lint template.yaml infrastructure/control.yaml infrastructure/artifacts.yaml`.
 
 ## Pull Requests
 

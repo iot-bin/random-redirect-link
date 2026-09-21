@@ -1,6 +1,6 @@
-# db-rebuild 管理中心
+# 管理中心部署
 
-本分支的目标架构是 Cognito + DynamoDB + 管理 Lambda + IAM，不使用 Secrets Manager。
+管理中心使用 Cognito、DynamoDB、管理 Lambda 和 IAM。
 代码变更不等于已经部署。`MANAGEMENT_API_URL` 未设置时，登录会明确报未配置。
 
 ## 部署记录
@@ -9,9 +9,9 @@
 
 `/public/site` 只公开站点标题、描述、Region 和 Cognito Client ID。Next.js 按运行实例缓存有效结果 60 秒，并合并并发请求；失败不缓存、过期结果不回退使用。环境、权限和会话请求仍不缓存。这个 HTTPS 入口决定认证配置来源，只能由部署者设置，不能接受浏览器请求提供的地址。
 
-先部署更新后的管理 Lambda，再填写 Vercel 变量并从 Git 部署前端。无需本地 bootstrap JSON、文件追踪配置或预构建上传。修改变量后本地重启、Vercel 重新部署。旧管理 API 缺少登录字段时会拒绝登录，必须先升级后端。
+先部署管理 Lambda，再填写 Vercel 变量并从 Git 部署前端。无需本地 bootstrap JSON、文件追踪配置或预构建上传。修改变量后本地重启、Vercel 重新部署。
 
-实际账号、资源名称、服务地址、管理员信息和测试结果保存在 Git 外的私有运维记录中。生产迁移前应先部署隔离测试资源；带 Retain 的资源需要单独清理。
+实际账号、资源名称、服务地址、管理员信息和测试结果保存在 Git 外的私有运维记录中。生产部署前应先部署隔离测试资源；带 Retain 的资源需要单独清理。
 
 ## 请求与信任边界
 
@@ -68,19 +68,19 @@ cfn-lint infrastructure/control.yaml template.yaml
 
 1. 确认账号 your-aws-profile 与 ap-southeast-1，并重新核对所需 Admin API、函数、路由、
    stage、PayloadFormatVersion=2.0、现有 Lambda resource policy 和表绑定。
-2. `config/workspace.example.json` 是待复核的初始配置，域名必须以现网核对结果为准。
+2. 将 `config/workspace.example.json` 复制为已忽略的 `config/workspace.local.json`，填写已核对的 API ID、stage 和短链域名。
 3. `infrastructure/control.yaml` 只新建管理资源；根 `template.yaml` 是新建短链后端模板，
    不要拿它去直接接管已有生产资源。
 4. `BackendApiIds` 填入允许使用的管理 API IDs。`BackendInvokeArns` 为相同 API 的
    `arn:aws:execute-api:ap-southeast-1:<account>:<api-id>/*/*/links*` 列表，不使用全账号通配。
-5. 部署管理栈，例如 `sam build --template-file infrastructure/control.yaml` 后
-   `sam deploy --guided`。确认实际 build 输出模板对应管理栈。
+5. 部署管理栈，例如 `sam build --template-file infrastructure/control.yaml --build-dir .aws-sam/control` 后
+   `sam deploy --guided --template-file .aws-sam/control/template.yaml --config-file samconfig.control.toml`。确认实际 build 输出模板对应管理栈。
 6. 在新 Cognito User Pool 创建首个管理员，邮箱由用户指定。创建会发送临时密码邮件，
    不在代码、终端输出或文档保存密码。Cognito 默认邮件有发送配额，扩大使用前配置 SES。
 7. 导出管理栈非敏感 Outputs 为 JSON，然后运行：
 
 ```powershell
-node lambda/control/scripts/initialize.mjs stack-outputs.json config/workspace.example.json <owner-email> main
+node lambda/control/scripts/initialize.mjs stack-outputs.json config/workspace.local.json <owner-email> main
 ```
 
 初始化脚本只查询已存在的用户，使用一次 DynamoDB 事务创建 CONFIG/OWNER/MEMBER，
@@ -88,36 +88,26 @@ node lambda/control/scripts/initialize.mjs stack-outputs.json config/workspace.e
 使用本地 AWS 标准凭据链，执行前明确选择 AWS_PROFILE=your-aws-profile、AWS_REGION=ap-southeast-1。
 初始化完成后，从 Outputs 取得 ManagementApiUrl 并设置 MANAGEMENT_API_URL。
 
-## 安全切换顺序
+## 验收与回滚
 
-先使用隔离测试环境验证完整登录、首次改密、找回密码、MFA、退出、角色与批量操作。
-生产切换前备份现有 Lambda 包、环境配置、API 路由/集成和旧前端部署，保存在 Git 外。
+在隔离测试环境验证登录、首次改密、找回密码、TOTP、退出、角色、跨环境权限和批量操作。
+所有 Admin 路由必须使用 `AWS_IAM`，集成使用 PayloadFormatVersion 2.0，Handler 仅接受指定管理角色。
+验证未签名及其他角色调用被拒绝，公共跳转正常。
 
-逐个环境切换：先将所有管理路由设为 AWS_IAM（包括可能存在的 $default/ANY），
-再发布新的 Admin handler 并设置 MANAGEMENT_ROLE_ARN。保留 TABLE_NAME、索引、
-WRITE_DISABLED 等其他值。这段短暂窗口管理操作可能不可用，公开跳转不受影响。
-原 Token handler 不能接受 IAM 签名请求，这是有意采用的关闭式过渡，不设置匿名过渡入口。
+更新前将函数包、环境配置、API 路由/集成和前端部署备份保存在 Git 外。
+回滚使用兼容 Cognito/IAM 的版本，并保持路由认证和角色校验。代码回滚不会恢复数据或配置；
+重试操作前应结合审计结果核对已执行的写入。
 
-验证未签名、旧 Bearer、错误角色都被拒绝；正确管理角色可读写，Public API 仍可跳转。
-检查每个 API 的所有 routes、integrations 和 Lambda 调用入口，不能遗留绕过路径。
-完成后移除 ADMIN_TOKEN 并发布已设置 MANAGEMENT_API_URL 的前端。最后清理 Vercel 的旧业务环境变量。
+## 部署变量
 
-回滚时先保持路由 AWS_IAM，再恢复旧函数包与旧令牌配置；确认 handler 已恢复 Token 校验后，
-才恢复原 API 路由认证设置及旧前端部署。禁止先移除 API 认证再恢复旧 handler。
-如果新环境已经接受写入，不做数据回滚；本方案不搬迁或复制短链表。
+Admin Lambda 使用 `TABLE_NAME`、`MANAGEMENT_ROLE_ARN`，可选 `LINKS_INDEX_NAME`、`WRITE_DISABLED`。
+公共 Lambda 使用 `TABLE_NAME`。管理 Lambda 的表名、User Pool ID、Client ID、工作空间和 API allowlist 由 SAM 注入。
+Vercel 仅设置服务端 `MANAGEMENT_API_URL`；用户会话令牌通过 Next.js 转发至管理服务。
 
-## 变量去向
-
-删除 Vercel 的 CONSOLE_PASSWORD/API_TARGETS/DEFAULT_TARGET_ID/SITE_TITLE/SITE_DESCRIPTION。
-删除 Admin Lambda 的 ADMIN_TOKEN。PUBLIC API 与原表绑定不变。
-保留 Lambda TABLE_NAME/LINKS_INDEX_NAME/WRITE_DISABLED，并新增非敏感 MANAGEMENT_ROLE_ARN。
-管理 Lambda 的表名、User Pool ID、Client ID、工作空间和 API allowlist 由 SAM 注入。
-Vercel 仅保存非敏感的 MANAGEMENT_API_URL，不保存长期后台密钥；用户会话令牌仍会短暂经过 Next.js 运行环境。
-
-## 第一版范围
+## 功能与限制
 
 具备邀请、成员启停、环境读写权限、配置版本冲突、所有者保护、站点与环境编辑、
 个人默认环境/分页、密码恢复和 TOTP 设置。邀请失败可能留下 Cognito 用户但未写入成员，
-可通过 Cognito 查询 sub 后使用成员 PUT 接口补录。第一版不支持 SSO、自助注册、
+可通过 Cognito 查询 sub 后使用成员 PUT 接口补录。当前不支持 SSO、自助注册、
 强制 MFA_SETUP 挑战、多工作空间切换和审计导出。
 不要把 User Pool MFA 改为必选，除非先实现首次登录的 MFA_SETUP 流程。

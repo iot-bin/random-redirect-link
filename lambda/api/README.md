@@ -5,8 +5,8 @@
 This directory contains the version-controlled source for the public
 `random-redirect-link-api` Lambda function.
 
-The function reads a link record by its `path` key, returns `404` for missing or
-disabled records, and emits a no-cache `301` or `302` redirect. It supports both
+The function reads a link record by its `path` key, returns `404` for missing,
+disabled, deleted, future, expired, or invalidly scheduled records, and emits a no-cache `301` or `302` redirect. It supports both
 random-subdomain records and fixed `targetUrl` records. `HEAD` returns the same
 status and headers as `GET` with an empty body.
 

@@ -1,6 +1,6 @@
 # random-redirect-link-admin Lambda
 
-> db-rebuild authentication change: this handler accepts only the management IAM role, not ADMIN_TOKEN. Follow the [migration guide](../../docs/control-plane.en.md). Token-based examples below are historical.
+The Admin API uses `AWS_IAM`; the handler accepts only the role configured in `MANAGEMENT_ROLE_ARN`. Set `TABLE_NAME` and optionally `LINKS_INDEX_NAME` and `WRITE_DISABLED`. See [Management service](../../docs/control-plane.en.md).
 
 [简体中文](README.zh-CN.md) | English
 

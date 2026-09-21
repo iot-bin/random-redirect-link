@@ -21,7 +21,7 @@ The function:
 
 1. Normalizes the incoming path.
 2. reads the matching DynamoDB item by the `path` partition key;
-3. returns `404` when the record is missing or `enabled` is `false`;
+3. returns `404` when the record is missing, disabled, deleted, not yet active, expired, or has invalid schedule timestamps;
 4. builds either a random-subdomain target or a fixed `targetUrl`;
 5. returns a no-cache `301` or `302` response.
 
@@ -97,7 +97,7 @@ Expected current configuration:
 
 - Runtime: `nodejs24.x`
 - Handler: `index.handler`
-- Timeout: `3`
+- Timeout: `10` in the SAM template; verify the actual deployment setting
 - State: `Active`
 
 The only application environment variable is `TABLE_NAME`. Preserve its current
@@ -183,16 +183,16 @@ aws apigatewayv2 get-routes `
   --output table
 ```
 
-The current `$default` stage auto-deploys route changes. A code-only Lambda
-update does not require an API Gateway deployment.
+Check the actual stage and auto-deploy setting. SAM uses the `Environment` stage.
+A code-only Lambda update does not require an API Gateway deployment.
 
 ## 9. Smoke Test
 
-Choose existing records representing a fixed target, a random-subdomain target,
-and a disabled link. Use `HEAD` so target content is never downloaded:
+Use the `PublicApiBaseUrl` stack output, including its stage; omit `/STAGE` only for a `$default` stage.
+Choose test records representing fixed and random targets, plus disabled, deleted, future and expired links. Use `HEAD` so target content is never downloaded:
 
 ```powershell
-$publicBaseUrl = "https://PUBLIC_API_ID.execute-api.ap-southeast-1.amazonaws.com"
+$publicBaseUrl = "https://PUBLIC_API_ID.execute-api.ap-southeast-1.amazonaws.com/STAGE"
 
 curl.exe --head --max-redirs 0 "$publicBaseUrl/<fixed-path>"
 curl.exe --head --max-redirs 0 "$publicBaseUrl/<random-path>"
@@ -205,7 +205,7 @@ Confirm:
 - fixed and random links return `301` or `302` with `Location`;
 - repeated random requests produce different target subdomains;
 - responses include `Cache-Control: no-store`;
-- the disabled link returns `404`;
+- disabled, deleted, future and expired links return `404`;
 - `HEAD` has no response body.
 
 Repeat against the custom short-link domain if CloudFront or DNS is in front of

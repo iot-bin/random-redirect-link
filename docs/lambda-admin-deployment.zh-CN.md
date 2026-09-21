@@ -1,7 +1,5 @@
 # Admin Lambda 部署教程
 
-> `db-rebuild`：下文中的 Token 认证说明属于旧架构。IAM 迁移和回滚顺序请以[管理服务迁移指南](control-plane.zh-CN.md)为准。
-
 简体中文 | [English](lambda-admin-deployment.en.md)
 
 本文用于部署项目中的模块化 `random-redirect-link-admin` Lambda 源码，并将
@@ -14,8 +12,7 @@ API Gateway 路由绑定到该函数。示例环境如下：
 - DynamoDB 表：`random-redirect-link`
 - GSI：`links-by-path`
 
-执行命令前，请确认当前终端使用的是预期 AWS 账号。不要把管理员令牌写进
-Git、命令记录或部署包。
+执行命令前确认 AWS 账号与区域。Admin API 使用指定管理角色的 IAM 认证，详见[管理中心部署](control-plane.zh-CN.md)。
 
 ## 1. 源码与部署包
 
@@ -150,7 +147,8 @@ aws lambda get-function-configuration `
 环境变量应继续保留原值：
 
 - `TABLE_NAME`
-- `ADMIN_TOKEN`
+- `MANAGEMENT_ROLE_ARN`
+- `WRITE_DISABLED`
 - `LINKS_INDEX_NAME`
 
 不要使用会覆盖整个 `Environment.Variables` 对象的命令，除非已经完整备份现有值。
@@ -244,9 +242,9 @@ Admin HTTP API 需要以下路由：
 ```text
 GET    /links
 POST   /links
-GET    /{path+}
-PATCH  /{path+}
-DELETE /{path+}
+GET    /links/{proxy+}
+PATCH  /links/{proxy+}
+DELETE /links/{proxy+}
 POST   /links/batch
 ```
 
@@ -257,11 +255,11 @@ aws apigatewayv2 get-routes `
   --api-id ADMIN_API_ID `
   --region ap-southeast-1 `
   --profile your-aws-profile `
-  --query "Items[].{Route:RouteKey,Target:Target}" `
+  --query "Items[].{Route:RouteKey,Target:Target,Auth:AuthorizationType}" `
   --output table
 ```
 
-如果 `PATCH /{path+}` 或 `POST /links/batch` 的 Target 为空：
+如果 `PATCH /links/{proxy+}` 或 `POST /links/batch` 的 Target 为空：
 
 1. 打开 AWS Console。
 2. 进入 API Gateway。
@@ -271,7 +269,9 @@ aws apigatewayv2 get-routes `
 6. 选择 Lambda `random-redirect-link-admin` 的 AWS Proxy integration。
 7. 确认 Target 变成 `integrations/<integration-id>`。
 
-当前 `$default` Stage 使用自动部署，绑定完成后不需要手动创建 Deployment。
+检查实际 Stage 与自动部署设置；SAM 使用 `Environment` 指定的 Stage。仅更新 Lambda 代码无需重新部署 API Gateway。
+
+所有 Admin 路由（包括可能存在的 ANY 或 `$default`）必须启用 `AWS_IAM`，集成使用 PayloadFormatVersion 2.0。Handler 校验 IAM caller 与 `MANAGEMENT_ROLE_ARN`；管理角色还需相应 API 的 `execute-api:Invoke` 权限。直接 `lambda:InvokeFunction` 仅授予受信任运维身份。
 
 ## 8. 检查 Lambda 调用权限
 
@@ -284,7 +284,7 @@ aws lambda get-policy `
   --profile your-aws-profile
 ```
 
-`PATCH /{path+}` 应由现有 `{path+}` 权限覆盖。批量路由如果没有对应权限，可添加：
+`PATCH /links/{proxy+}` 应由现有 `{path+}` 权限覆盖。批量路由如果没有对应权限，可添加：
 
 ```powershell
 aws lambda add-permission `
@@ -301,63 +301,17 @@ aws lambda add-permission `
 
 ## 9. 部署后冒烟测试
 
-以下测试会创建一个固定目标地址的临时短链、停用它、批量启用它，然后删除。
-确认目标地址允许用于测试。
+通过控制台在已授权测试环境验证 Cognito、成员权限和 IAM 签名的完整调用链：
 
-```powershell
-$adminBaseUrl = "https://ADMIN_API_ID.execute-api.ap-southeast-1.amazonaws.com"
-$secureToken = Read-Host "Admin token" -AsSecureString
-$adminToken = [Net.NetworkCredential]::new("", $secureToken).Password
-$headers = @{ Authorization = "Bearer $adminToken" }
-$testPath = "deployment-smoke-$(Get-Date -Format 'yyyyMMddHHmmss')"
+1. 使用有环境权限的编辑者或管理员登录。
+2. 创建唯一路径、目标为 `https://example.com/` 的固定短链，确认列表可见。
+3. 停用后批量启用，确认批量操作没有失败项。
+4. 使用公共地址检查 GET 与 HEAD 跳转。
+5. 删除并确认进入回收站，恢复后再次删除测试短链。
+6. 验证只读成员无法写入，成员无法访问未获授权的环境。
+7. 验证未签名及其他 IAM 角色的 Admin API 请求均被拒绝。
 
-$created = Invoke-RestMethod `
-  -Method Post `
-  -Uri "$adminBaseUrl/links" `
-  -Headers $headers `
-  -ContentType "application/json" `
-  -Body (@{
-    path = $testPath
-    targetUrl = "https://example.com/"
-    randomSubdomain = $false
-  } | ConvertTo-Json -Compress)
-
-$disabled = Invoke-RestMethod `
-  -Method Patch `
-  -Uri "$adminBaseUrl/links/$testPath" `
-  -Headers $headers `
-  -ContentType "application/json" `
-  -Body (@{
-    enabled = $false
-    expectedUpdatedAt = $created.updatedAt
-  } | ConvertTo-Json -Compress)
-
-$batchResult = Invoke-RestMethod `
-  -Method Post `
-  -Uri "$adminBaseUrl/links/batch" `
-  -Headers $headers `
-  -ContentType "application/json" `
-  -Body (@{
-    action = "enable"
-    paths = @($testPath)
-  } | ConvertTo-Json -Compress)
-
-$deleted = Invoke-RestMethod `
-  -Method Delete `
-  -Uri "$adminBaseUrl/links/$testPath" `
-  -Headers $headers
-
-$created, $disabled, $batchResult, $deleted
-Remove-Variable adminToken, secureToken, headers
-```
-
-期望结果：
-
-- 创建返回 HTTP 201。
-- 创建结果的 `randomSubdomain` 为 `false`，且无需 `subdomainLength`。
-- 停用结果的 `enabled` 为 `false`。
-- 批量启用结果的 `failed` 为空。
-- 删除结果的 `deleted` 为 `true`。
+删除为软删除，物理清理前路径仍被占用。
 
 ## 10. 查看日志
 
@@ -393,8 +347,8 @@ aws lambda wait function-updated `
 ```
 
 代码回滚不会自动还原 API Gateway 路由或 Lambda 配置。如果本次同时修改了这些资源，
-需要分别恢复。
+需要分别恢复。回滚期间保持 `AWS_IAM` 与指定角色校验，使用兼容 IAM 认证的备份版本。
 
-## 生命周期功能上线
+## 链接生命周期
 
-先部署跳转 Lambda 的删除和有效期检查，再部署此管理版本。DELETE 改为软删除；恢复使用现有 PATCH 路由（restore:true）或批量 restore。应用验证完成后，最后启用数值字段 purgeAt 的 DynamoDB TTL，不能使用 expiresAt 作为 TTL 字段。详见 [回收站与有效期](../README.zh-CN.md#回收站与有效期)。
+DELETE 使用软删除；恢复使用 PATCH（`restore:true`）或批量 `restore`。DynamoDB TTL 使用数值字段 `purgeAt`，不能使用 `expiresAt`。详见[回收站与有效期](../README.zh-CN.md#回收站与有效期)。

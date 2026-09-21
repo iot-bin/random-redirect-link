@@ -1,7 +1,5 @@
 # Admin Lambda Deployment Guide
 
-> `db-rebuild`: token authentication instructions below describe the previous architecture. Use [the management-plane migration guide](control-plane.en.md) for the IAM migration and rollback order.
-
 [简体中文](lambda-admin-deployment.zh-CN.md) | English
 
 This guide packages and deploys the modular `random-redirect-link-admin` Lambda
@@ -14,8 +12,8 @@ source and verifies its API Gateway integration. The examples use:
 - DynamoDB table: `random-redirect-link`
 - Listing GSI: `links-by-path`
 
-Confirm the account and Region before running any command. Never place the Admin
-token in Git, a command line, logs, or a deployment package.
+Confirm the account and Region before running any command. The Admin API requires IAM
+authentication from the designated management role. See [Management service](control-plane.en.md).
 
 ## 1. Package Model
 
@@ -99,7 +97,8 @@ Expected configuration:
 Preserve the existing values of:
 
 - `TABLE_NAME`
-- `ADMIN_TOKEN`
+- `MANAGEMENT_ROLE_ARN`
+- `WRITE_DISABLED`
 - `LINKS_INDEX_NAME` (defaults to `links-by-path` in code)
 
 Do not update the `Environment.Variables` object unless every current value has
@@ -182,9 +181,9 @@ The Admin HTTP API requires:
 ```text
 GET    /links
 POST   /links
-GET    /{path+}
-PATCH  /{path+}
-DELETE /{path+}
+GET    /links/{proxy+}
+PATCH  /links/{proxy+}
+DELETE /links/{proxy+}
 POST   /links/batch
 ```
 
@@ -195,66 +194,27 @@ aws apigatewayv2 get-routes `
   --api-id ADMIN_API_ID `
   --region ap-southeast-1 `
   --profile your-aws-profile `
-  --query "Items[].{Route:RouteKey,Target:Target}" `
+  --query "Items[].{Route:RouteKey,Target:Target,Auth:AuthorizationType}" `
   --output table
 ```
 
-The current `$default` stage auto-deploys route changes. Code-only Lambda
-updates do not require a new API Gateway deployment.
+Check the actual stage and auto-deploy setting; SAM uses the `Environment` stage. Code-only Lambda updates do not require a new API Gateway deployment.
 
-API Gateway currently leaves these routes unauthenticated. The Lambda must
-therefore keep validating `Authorization: Bearer <ADMIN_TOKEN>` on every route.
+Every Admin route, including any ANY or $default route, must use `AWS_IAM`. Use payload format 2.0. The handler verifies the API Gateway IAM caller against `MANAGEMENT_ROLE_ARN`; the control role also needs scoped `execute-api:Invoke` permissions. Restrict direct `lambda:InvokeFunction` access to trusted operators.
 
 ## 9. Smoke Test
 
-The following flow creates a temporary fixed link, disables it, batch-enables
-it, and deletes it. Supply the token interactively:
+Use an authorized test environment through the console to exercise Cognito, membership checks and IAM signing:
 
-```powershell
-$adminBaseUrl = "https://ADMIN_API_ID.execute-api.ap-southeast-1.amazonaws.com"
-$secureToken = Read-Host "Admin token" -AsSecureString
-$adminToken = [Net.NetworkCredential]::new("", $secureToken).Password
-$headers = @{ Authorization = "Bearer $adminToken" }
-$testPath = "deployment-smoke-$(Get-Date -Format 'yyyyMMddHHmmss')"
+1. Sign in as an editor or administrator with access to the environment.
+2. Create a unique fixed-target link to `https://example.com/`; confirm it appears in the list.
+3. Disable it, then batch-enable it and confirm there are no batch failures.
+4. Verify GET and HEAD redirects through the public URL.
+5. Delete it, confirm it appears in the recycle bin, restore it, then delete the test link again.
+6. Confirm a viewer cannot mutate links and a member cannot access an unassigned environment.
+7. Confirm unsigned Admin API calls and calls from a different IAM role are rejected.
 
-$created = Invoke-RestMethod `
-  -Method Post `
-  -Uri "$adminBaseUrl/links" `
-  -Headers $headers `
-  -ContentType "application/json" `
-  -Body (@{
-    path = $testPath
-    targetUrl = "https://example.com/"
-    randomSubdomain = $false
-  } | ConvertTo-Json -Compress)
-
-$disabled = Invoke-RestMethod `
-  -Method Patch `
-  -Uri "$adminBaseUrl/links/$testPath" `
-  -Headers $headers `
-  -ContentType "application/json" `
-  -Body (@{
-    enabled = $false
-    expectedUpdatedAt = $created.updatedAt
-  } | ConvertTo-Json -Compress)
-
-$batchResult = Invoke-RestMethod `
-  -Method Post `
-  -Uri "$adminBaseUrl/links/batch" `
-  -Headers $headers `
-  -ContentType "application/json" `
-  -Body (@{ action = "enable"; paths = @($testPath) } | ConvertTo-Json -Compress)
-
-$deleted = Invoke-RestMethod `
-  -Method Delete `
-  -Uri "$adminBaseUrl/links/$testPath" `
-  -Headers $headers
-
-$created, $disabled, $batchResult, $deleted
-Remove-Variable adminToken, secureToken, headers
-```
-
-Confirm HTTP `201`, `enabled=false`, no batch failures, and `deleted=true`.
+Deletion is soft deletion; the path stays reserved until physical cleanup.
 
 ## 10. Logs and Rollback
 
@@ -268,8 +228,8 @@ aws logs tail "/aws/lambda/random-redirect-link-admin" `
 If the deployment fails, upload the backup ZIP from section 6 with
 `aws lambda update-function-code`, then wait for `function-updated` again.
 Code rollback does not revert environment variables, IAM, or API Gateway routes;
-restore those separately if they were changed.
+restore those separately if they were changed. Keep `AWS_IAM` and the designated-role check enabled; use a compatible IAM-authenticated backup.
 
-## Lifecycle rollout
+## Link lifecycle
 
-Deploy the public Lambda lifecycle checks before deploying this admin version. DELETE now soft-deletes; restore uses the existing PATCH route (restore:true) or batch action restore. After application verification, enable DynamoDB TTL on the numeric purgeAt attribute. Do not use expiresAt as the TTL field. See [lifecycle behavior](../README.md#recycle-bin-and-link-schedules).
+DELETE soft-deletes links. Restore uses PATCH with `restore:true` or batch action `restore`. DynamoDB TTL uses numeric `purgeAt`, not `expiresAt`. See [lifecycle behavior](../README.md#recycle-bin-and-link-schedules).

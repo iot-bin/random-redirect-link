@@ -19,7 +19,7 @@
 
 1. 规范化请求路径；
 2. 按 `path` 分区键读取 DynamoDB 记录；
-3. 在记录不存在或 `enabled` 为 `false` 时返回 `404`；
+3. 在记录不存在、停用、已删除、未生效、已过期或有效期时间格式错误时返回 `404`；
 4. 根据记录生成随机二级域名目标或使用固定 `targetUrl`；
 5. 返回禁止缓存的 `301` 或 `302` 跳转。
 
@@ -93,7 +93,7 @@ aws lambda get-function-configuration `
 
 - Runtime：`nodejs24.x`
 - Handler：`index.handler`
-- Timeout：`3`
+- Timeout：SAM 模板为 `10`，以实际部署配置为准
 - State：`Active`
 
 应用环境变量只有 `TABLE_NAME`，请保留其现有值。没有完整备份前，不要覆盖整个
@@ -179,15 +179,16 @@ aws apigatewayv2 get-routes `
   --output table
 ```
 
-当前 `$default` Stage 会自动部署路由变更。仅更新 Lambda 代码不需要创建新的
-API Gateway Deployment。
+检查实际 Stage 与自动部署设置；SAM 使用 `Environment` 指定的 Stage。
+仅更新 Lambda 代码不需要创建新的 API Gateway Deployment。
 
 ## 9. 冒烟测试
 
-选择已有的固定目标、随机二级域名和停用记录。使用 `HEAD`，避免下载目标内容：
+使用包含 stage 的 `PublicApiBaseUrl` 栈输出，仅 `$default` stage 省略 `/STAGE`。
+选择固定目标、随机二级域名、停用、已删除、未生效和已过期的测试记录。使用 `HEAD`，避免下载目标内容：
 
 ```powershell
-$publicBaseUrl = "https://PUBLIC_API_ID.execute-api.ap-southeast-1.amazonaws.com"
+$publicBaseUrl = "https://PUBLIC_API_ID.execute-api.ap-southeast-1.amazonaws.com/STAGE"
 
 curl.exe --head --max-redirs 0 "$publicBaseUrl/<固定短链路径>"
 curl.exe --head --max-redirs 0 "$publicBaseUrl/<随机短链路径>"
@@ -200,7 +201,7 @@ curl.exe --head --max-redirs 0 "$publicBaseUrl/<已停用短链路径>"
 - 固定和随机短链返回 `301` 或 `302`，并包含 `Location`；
 - 两次随机请求生成不同的目标子域名；
 - 响应包含 `Cache-Control: no-store`；
-- 已停用短链返回 `404`；
+- 停用、已删除、未生效和已过期短链返回 `404`；
 - `HEAD` 没有响应体。
 
 如果自定义短链域名前还有 CloudFront 或其他 CDN，也要针对自定义域名重复测试，

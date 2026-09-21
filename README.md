@@ -1,7 +1,5 @@
 # Random Redirect Link Console
 
-> db-rebuild: read the [management-plane migration guide](docs/control-plane.en.md) before deploying. Older token-based deployment guides are historical and do not apply to this branch.
-
 [简体中文](README.zh-CN.md) | English
 
 A Next.js management console and version-controlled AWS Lambda source for
@@ -15,14 +13,16 @@ The screenshots show the English interface; Simplified and Traditional Chinese a
 
 ![Link management with status badges, path filtering, and pagination](docs/images/en/console-links.png)
 
-[View the full console gallery](docs/console-preview.en.md): link creation, details drawer, recycle bin, settings, dark mode, and mobile layout.
+[View the full console gallery](docs/console-preview.en.md): link creation, details drawer, recycle bin, settings, environment configuration, member permissions, audit events, dark mode, and mobile layout.
 
 ## Architecture
 
 ```text
 Browser
   -> Next.js console routes
-  -> Admin HTTP API
+  -> Management HTTP API (Cognito JWT)
+  -> Control Lambda (membership and environment authorization)
+  -> Admin HTTP API (IAM / SigV4)
   -> random-redirect-link-admin Lambda
   -> DynamoDB
 
@@ -33,8 +33,8 @@ Visitor opens a short link
   -> HTTP 301 or 302 redirect
 ```
 
-The browser never receives an Admin API token. Next.js resolves the selected
-target on the server, attaches its Bearer token, and forwards the request.
+Next.js forwards the user's access token to the management service. The control Lambda
+checks membership and environment permissions, then signs Admin API requests with IAM.
 
 ## Features
 
@@ -47,6 +47,7 @@ target on the server, attaches its Bearer token, and forwards the request.
 - Use light/dark themes and responsive mobile layouts, with browser-saved preferences.
 - Switch between `zh-CN`, `zh-TW`, and `en` in the console.
 - Select from multiple independently configured API environments.
+- Manage members, environment grants, site configuration, and audit events.
 - Build either small Lambda packages that use the runtime-provided AWS SDK v3
   or optional self-contained packages with pinned SDK dependencies.
 
@@ -55,8 +56,12 @@ target on the server, attaches its Bearer token, and forwards the request.
 ```text
 app/                 Next.js App Router pages and server routes
 lib/                 API target, validation, session, and i18n modules
+lambda/control/      Management service, authorization, and workspace initialization
+infrastructure/      Management and deployment-artifact stack templates
+config/              Workspace configuration example
 lambda/admin/        Admin Lambda source, tests, and packaging
 lambda/api/          Public redirect Lambda source, tests, and packaging
+template.yaml        Redirect backend SAM template
 docs/                English and Simplified Chinese deployment guides
 public/              Static assets, including the project favicon
 ```
@@ -70,8 +75,7 @@ public/              Static assets, including the project favicon
 
 ## Console Configuration
 
-This branch uses Cognito, a DynamoDB management plane, and IAM backend authentication.
-The console no longer reads CONSOLE_PASSWORD, API_TARGETS, DEFAULT_TARGET_ID, SITE_TITLE or SITE_DESCRIPTION.
+The console uses Cognito authentication, a DynamoDB management plane, and IAM backend authentication.
 
 Follow [Management-plane deployment](docs/control-plane.en.md). Initialize the workspace,
 then set the server-only `MANAGEMENT_API_URL` to the stack output in Vercel (or `.env.local`).
@@ -117,7 +121,13 @@ Both default packages externalize `@aws-sdk/*` and use the AWS SDK v3 included
 in the Node.js 24 Lambda runtime. To pin and include the SDK instead, run
 `package:self-contained` in the corresponding Lambda directory.
 
+The management service in `lambda/control` is built with `pnpm --dir lambda/control build`
+after installing its dependencies. Its bundle includes SDK dependencies and is deployed through
+`infrastructure/control.yaml`; it does not use the Admin/public ZIP scripts.
+
 ## Deployment Guides
+
+- Management service and workspace initialization: [English](docs/control-plane.en.md) | [简体中文](docs/control-plane.zh-CN.md)
 
 - Complete AWS SAM infrastructure: [English](docs/infrastructure.en.md) |
   [简体中文](docs/infrastructure.zh-CN.md)
@@ -145,11 +155,11 @@ smoke tests, logs, and rollback. Building a package does not deploy it.
 
 Links accept optional ISO 8601 startsAt/expiresAt timestamps with an explicit timezone. Null clears a timestamp on PATCH; an omitted field is unchanged. The console displays Singapore time (UTC+8). GET and HEAD check deletion, enabled state and the current time on every request. Existing links without these fields remain compatible.
 
-DELETE and batch delete now soft-delete links for 7 days; repeating deletion does not extend retention. GET /links?view=trash lists deleted links (default view=links excludes them). PATCH /links/{path} with restore:true restores a link, optionally including revised schedule fields. Batch action restore supports up to 50 paths. Restoration preserves enabled state; an elapsed expiry must be extended or cleared. Recovery/renewal is refused at the retention deadline. Paths remain reserved until physical deletion.
+DELETE and batch delete soft-delete links for 7 days; repeating deletion does not extend retention. GET /links?view=trash lists deleted links (default view=links excludes them). PATCH /links/{path} with restore:true restores a link, optionally including revised schedule fields. Batch action restore supports up to 50 paths. Restoration preserves enabled state; an elapsed expiry must be extended or cleared. Recovery/renewal is refused at the retention deadline. Paths remain reserved until physical deletion.
 
 DynamoDB TTL uses numeric Unix seconds in purgeAt, never expiresAt. Normal expiry schedules cleanup 7 days later; manual deletion schedules cleanup 7 days after deletion. TTL deletion is asynchronous. List filtering preserves pagination cursors; GSI results are eventually consistent. Conditional updates protect concurrent mutations; direct item reads are strongly consistent.
 
-Deployment order: deploy the public Lambda with lifecycle checks first, then the admin Lambda and console; enable TTL on purgeAt last after verification. The SAM template declares this TTL field for managed stacks. Configure and verify TTL separately for manually managed resources. Table replacements require a migration plan with backups, data verification, and a controlled cutover. No new API Gateway route is needed: restore uses the existing PATCH and batch routes.
+The SAM template enables DynamoDB TTL on `purgeAt`. Verify the same setting for manually managed tables. Restore uses the PATCH and batch routes.
 
 ## Contributing and Security
 

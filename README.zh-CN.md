@@ -1,7 +1,5 @@
 # 随机跳转短链控制台
 
-> db-rebuild：部署前必须阅读 [管理中心迁移说明](docs/control-plane.zh-CN.md)。旧 Token 部署教程仅供历史参考，不能直接用于本分支。
-
 简体中文 | [English](README.md)
 
 这是一个 Next.js 短链管理控制台，同时保存配套 AWS Lambda 的可版本管理源码。
@@ -14,14 +12,16 @@
 
 ![链接管理：状态、路径筛选与分页](docs/images/zh-CN/console-links.png)
 
-[查看完整面板图集](docs/console-preview.zh-CN.md)：创建短链、详情抽屉、回收站、设置、深色模式和移动端。
+[查看完整面板图集](docs/console-preview.zh-CN.md)：创建短链、详情抽屉、回收站、设置、环境配置、成员权限、审计记录、深色模式和移动端。
 
 ## 架构
 
 ```text
 浏览器
   -> Next.js 控制台服务端路由
-  -> Admin HTTP API
+  -> 管理 HTTP API（Cognito JWT）
+  -> Control Lambda（成员与环境权限校验）
+  -> Admin HTTP API（IAM / SigV4）
   -> random-redirect-link-admin Lambda
   -> DynamoDB
 
@@ -32,7 +32,7 @@
   -> HTTP 301 或 302 跳转
 ```
 
-浏览器和 Next.js 不再持有 Admin Token。Next.js 只转发用户访问令牌，管理服务验证环境权限后使用 IAM 签名调用 Admin API。
+Next.js 转发用户访问令牌，管理服务验证环境权限后使用 IAM 签名调用 Admin API。
 
 ## 功能
 
@@ -42,9 +42,10 @@
 - 每次批量启用、停用、移入回收站或恢复最多 50 条短链。
 - 设置生效和过期时间；删除后保留 7 天，可在保留期内恢复。
 - 使用详情抽屉、短链复制和二维码，支持深浅主题与移动端布局。
-- 在浏览器中保存默认环境、界面语言、主题和每页数量。
+- 默认环境和每页数量按用户保存在数据库；界面语言和主题保存在浏览器。
 - 在 `zh-CN`、`zh-TW` 和 `en` 之间切换界面语言。
 - 配置并切换多个相互独立的 API 环境。
+- 管理成员、环境授权、站点配置和审计事件。
 - 默认构建使用 Lambda Runtime 内置 AWS SDK v3 的精简包，也可生成包含固定 SDK
   版本的自包含包。
 
@@ -53,8 +54,12 @@
 ```text
 app/                 Next.js App Router 页面和服务端路由
 lib/                 API 环境、校验、会话和 i18n 模块
+lambda/control/      管理服务、授权和工作空间初始化
+infrastructure/      管理栈与部署产物栈模板
+config/              工作空间配置示例
 lambda/admin/        Admin Lambda 源码、测试和打包脚本
 lambda/api/          公共跳转 Lambda 源码、测试和打包脚本
+template.yaml        短链后端 SAM 模板
 docs/                英文和简体中文部署教程
 public/              静态资源，包括项目 favicon
 ```
@@ -68,17 +73,16 @@ public/              静态资源，包括项目 favicon
 
 ## 控制台配置
 
-本分支使用 Cognito、DynamoDB 管理中心和 IAM 后端认证，不再读取
-`CONSOLE_PASSWORD`、`API_TARGETS`、`DEFAULT_TARGET_ID`、`SITE_TITLE` 或 `SITE_DESCRIPTION`。
+控制台使用 Cognito、DynamoDB 管理中心和 IAM 后端认证。
 
-先按 [管理中心部署与迁移](docs/control-plane.zh-CN.md) 创建独立管理栈、初始化所有者和环境配置，
+先按 [管理中心部署](docs/control-plane.zh-CN.md) 创建独立管理栈、初始化所有者和环境配置，
 再在 Vercel（本地使用 `.env.local`）设置服务端变量 `MANAGEMENT_API_URL`，值取管理栈输出。
 应用从 `/public/site` 获取 Region 与 Cognito Client ID；缺少配置时拒绝登录。
 可以直接从 Git 部署，无需本地 JSON 配置或上传预构建产物。
 
 环境、站点标题和成员权限在管理中心编辑，无需重新部署前端。
 默认环境和分页数量按用户保存在数据库；语言和主题继续保存在浏览器。
-原登录页保留样式，改用邮箱、密码、首次登录改密、找回密码和可选验证器 MFA。
+登录支持邮箱、密码、首次登录改密、找回密码和可选验证器 MFA。
 
 ## 本地开发
 
@@ -87,7 +91,7 @@ npm install
 npm run dev
 ```
 
-初始化管理栈与 入口配置后，打开 `http://localhost:3000`，使用受邀的 Cognito 账号登录。
+初始化管理栈与入口配置后，打开 `http://localhost:3000`，使用受邀的 Cognito 账号登录。
 
 常用检查命令：
 
@@ -117,7 +121,12 @@ pnpm --dir lambda/api package
 AWS SDK v3。需要固定并包含 SDK 版本时，在对应 Lambda 目录执行
 `package:self-contained`。
 
+管理服务位于 `lambda/control`，安装依赖后使用 `pnpm --dir lambda/control build` 构建。
+其包包含 SDK 依赖，通过 `infrastructure/control.yaml` 部署，不使用 Admin/公共函数的 ZIP 脚本。
+
 ## 部署教程
+
+- 管理服务与工作空间初始化：[English](docs/control-plane.en.md) | [简体中文](docs/control-plane.zh-CN.md)
 
 - 完整 AWS SAM 基础设施：[English](docs/infrastructure.en.md) |
   [简体中文](docs/infrastructure.zh-CN.md)
@@ -142,13 +151,13 @@ AWS SDK v3。需要固定并包含 SDK 版本时，在对应 Lambda 目录执行
 
 ## 回收站与有效期
 
-新增可选 startsAt/expiresAt，使用带时区的 ISO 8601 时间；PATCH 中 null 表示清除，省略表示不修改。界面统一显示新加坡时间 UTC+8。GET/HEAD 每次实时检查删除标记、启停状态和时间，旧记录保持兼容。
+支持可选 startsAt/expiresAt，使用带时区的 ISO 8601 时间；PATCH 中 null 表示清除，省略表示不修改。界面统一显示新加坡时间 UTC+8。GET/HEAD 每次实时检查删除标记、启停状态和时间，未设置有效期的记录不受时间限制。
 
-单条及批量删除改为保留 7 天的软删除，重复删除不延长保留期。GET /links?view=trash 查看回收站；默认 view=links 排除已删除记录。PATCH /links/{path} 传 restore:true 恢复，可同时修改有效期；批量 action=restore 最多 50 条。恢复保留原启停状态，已过期时必须延长或清除过期时间。保留期截止即禁止恢复或续期；物理清理前路径仍被占用。
+单条及批量删除使用保留 7 天的软删除，重复删除不延长保留期。GET /links?view=trash 查看回收站；默认 view=links 排除已删除记录。PATCH /links/{path} 传 restore:true 恢复，可同时修改有效期；批量 action=restore 最多 50 条。恢复保留原启停状态，已过期时必须延长或清除过期时间。保留期截止即禁止恢复或续期；物理清理前路径仍被占用。
 
 TTL 字段为数值型 Unix 秒 purgeAt，不能直接使用 expiresAt。正常到期后保留 7 天再进入清理范围，手动删除则从删除时起保留 7 天。TTL 异步清理，不保证准点删除。列表过滤保留分页游标，GSI 列表可能短暂延迟；直接读取使用强一致性，更新使用版本条件避免并发覆盖。
 
-上线顺序：先部署跳转 Lambda 的实时检查，再部署管理 Lambda 和控制台，验证后最后启用 purgeAt TTL。SAM 模板已声明该字段；现有手动管理资源需单独核对并配置 TTL，涉及换表时应按迁移方案备份、校验和切换。恢复复用 PATCH 和批量路由，不需要新 API Gateway 路由。
+SAM 模板已启用 `purgeAt` TTL；手动管理的表需核对相同设置。恢复使用 PATCH 和批量路由。
 
 ## 参与贡献与安全报告
 

@@ -1,6 +1,6 @@
 # random-redirect-link-admin Lambda
 
-> db-rebuild 认证变更：本分支只接受管理服务 IAM 角色，不再读取 ADMIN_TOKEN。请以 [管理中心迁移说明](../../docs/control-plane.zh-CN.md) 为准。下方旧令牌部署示例仅供历史参考。
+Admin API 使用 `AWS_IAM`；Handler 仅接受 `MANAGEMENT_ROLE_ARN` 指定角色。配置 `TABLE_NAME`，并按需设置 `LINKS_INDEX_NAME` 与 `WRITE_DISABLED`。详见[管理中心部署](../../docs/control-plane.zh-CN.md)。
 
 简体中文 | [English](README.md)
 
