@@ -4,18 +4,17 @@ import { useCallback, useEffect, useRef, useState } from 'react';
 import {
   ChevronLeftIcon,
   ChevronRightIcon,
-  LinkIcon,
   RefreshIcon,
   SearchIcon,
 } from '@/app/components/Icons';
 import { DetailsDrawer } from '@/app/components/DetailsDrawer';
 import { LinkDetailsPanel } from '@/app/components/LinkDetailsPanel';
 import { LinkList } from '@/app/components/LinkList';
+import { DropdownSelect } from '@/app/components/DropdownSelect';
 import {
   buildShortUrl,
   encodeLinkPath,
   getLinkPathError,
-  getLinkPrefixError,
   normalizeLinkPath,
   normalizeLinkPrefix,
 } from '@/lib/link-path';
@@ -54,6 +53,9 @@ type BatchFeedback =
     action: LinkBatchAction;
     requestedCount: number;
   };
+
+const defaultSearchOptions = { match: 'contains', state: 'all', sort: 'path-asc' };
+type SearchOptions = typeof defaultSearchOptions;
 
 function isLinkRecord(value: unknown): value is LinkRecord {
   return (
@@ -146,12 +148,14 @@ export function LinkManagerPanel({
   const tRef = useRef(t);
   const [searchInput, setSearchInput] = useState(initialPath);
   const [activePrefix, setActivePrefix] = useState('');
+  const [searchOptions, setSearchOptions] = useState(defaultSearchOptions);
+  const activeOptionsRef = useRef(defaultSearchOptions);
+  const listRequestRef = useRef(0);
   const [items, setItems] = useState<LinkRecord[]>([]);
   const [selectedRecord, setSelectedRecord] = useState<LinkRecord | null>(null);
   const [nextCursor, setNextCursor] = useState<string | null>(null);
   const [cursorStack, setCursorStack] = useState<Array<string | null>>([null]);
   const [listLoading, setListLoading] = useState(false);
-  const [lookupLoading, setLookupLoading] = useState(false);
   const [updatingPath, setUpdatingPath] = useState('');
   const [batchAction, setBatchAction] = useState<LinkBatchAction | null>(null);
   const [batchFeedback, setBatchFeedback] = useState<BatchFeedback | null>(null);
@@ -183,7 +187,9 @@ export function LinkManagerPanel({
       cursor: string | null,
       prefix: string,
       signal?: AbortSignal,
+      options: SearchOptions = activeOptionsRef.current,
     ): Promise<LinkListResponse | null> => {
+      const requestId = ++listRequestRef.current;
       if (!target) {
         setItems([]);
         setNextCursor(null);
@@ -200,7 +206,8 @@ export function LinkManagerPanel({
         view,
       });
       if (cursor) query.set('cursor', cursor);
-      if (prefix) query.set('prefix', prefix);
+      if (prefix) query.set('q', prefix);
+      for (const [key, value] of Object.entries(options)) query.set(key, value);
 
       try {
         const response = await fetch(`/api/links?${query.toString()}`, {
@@ -208,6 +215,7 @@ export function LinkManagerPanel({
           signal,
         });
         const payload: unknown = await response.json().catch(() => ({}));
+        if (signal?.aborted || requestId !== listRequestRef.current) return null;
 
         if (!response.ok) {
           setListError(translateApiError(payload, tRef.current, 'manager.listLoadFailed'));
@@ -226,13 +234,14 @@ export function LinkManagerPanel({
         setPendingDeletePaths([]);
         return result;
       } catch (requestError) {
+        if (signal?.aborted || requestId !== listRequestRef.current) return null;
         if (requestError instanceof Error && requestError.name === 'AbortError') {
           return null;
         }
         setListError(tRef.current('common.networkError'));
         return null;
       } finally {
-        setListLoading(false);
+        if (requestId === listRequestRef.current) setListLoading(false);
       }
     },
     [pageSize, target, view],
@@ -255,7 +264,6 @@ export function LinkManagerPanel({
         return;
       }
 
-      setLookupLoading(true);
       try {
         const response = await fetch(
           `/api/links/${encodeLinkPath(path)}?targetId=${encodeURIComponent(target.id)}`,
@@ -277,8 +285,6 @@ export function LinkManagerPanel({
       } catch (requestError) {
         if (requestError instanceof Error && requestError.name === 'AbortError') return;
         setSearchError(tRef.current('common.networkError'));
-      } finally {
-        setLookupLoading(false);
       }
     },
     [showRecord, target],
@@ -289,6 +295,11 @@ export function LinkManagerPanel({
     const timerId = window.setTimeout(() => {
       setSelectedRecord(null);
       setSelectedPaths([]);
+      activeOptionsRef.current = defaultSearchOptions;
+      setSearchOptions(defaultSearchOptions);
+      setActivePrefix('');
+      setSearchInput(initialPath);
+      setCursorStack([null]);
       void requestPage(null, '', controller.signal);
       if (initialPath) void lookupExact(initialPath, controller.signal);
     }, 0);
@@ -296,6 +307,7 @@ export function LinkManagerPanel({
     return () => {
       window.clearTimeout(timerId);
       controller.abort();
+      ++listRequestRef.current;
     };
   }, [initialPath, lookupExact, requestPage]);
 
@@ -312,23 +324,25 @@ export function LinkManagerPanel({
     return t('manager.actionDelete');
   }
 
-  async function applyPrefix() {
-    const prefix = normalizeLinkPrefix(searchInput);
+  async function applyPrefix(reset = false) {
+    const options = reset ? defaultSearchOptions : searchOptions;
+    let prefix = reset ? '' : searchInput.trim();
+    if (options.match === 'prefix') prefix = normalizeLinkPrefix(prefix);
+    if (options.match === 'exact') prefix = normalizeLinkPath(prefix);
 
     setSearchError('');
     setNotice('');
 
-    if (prefix) {
-      const prefixError = getLinkPrefixError(prefix);
-      if (prefixError) {
-        setSearchError(translateValidationError(prefixError, t));
-        return;
-      }
+    if (prefix.length > 512 || /[\u0000-\u001f\u007f]/.test(prefix)) {
+      setSearchError(t('manager.invalidSearch'));
+      return;
     }
 
-    const result = await requestPage(null, prefix);
+    const result = await requestPage(null, prefix, undefined, options);
     if (!result) return;
 
+    activeOptionsRef.current = options;
+    setSearchOptions(options);
     setActivePrefix(prefix);
     setSearchInput(prefix);
     setCursorStack([null]);
@@ -420,6 +434,7 @@ export function LinkManagerPanel({
       setSelectedRecord((current) => (
         current?.path === updatedRecord.path ? updatedRecord : current
       ));
+      await requestPage(cursorStack[cursorStack.length - 1] ?? null, activePrefix);
       setNotice(t('manager.updatedNotice', { path: updatedRecord.path }));
       return true;
     } catch {
@@ -564,9 +579,7 @@ export function LinkManagerPanel({
   }
 
   const pageNumber = cursorStack.length;
-  const emptyMessage = view === 'trash' ? t('life.trashEmpty') : activePrefix
-    ? t('manager.emptyPrefix', { prefix: activePrefix })
-    : t('manager.emptyAll');
+  const emptyMessage = nextCursor ? t('manager.searchContinue') : t('manager.noMatches');
 
   return (
     <div className="manager-workspace">
@@ -575,7 +588,7 @@ export function LinkManagerPanel({
 
         <form className="lookup-form" onSubmit={handleFilterSubmit}>
           <div className="form-field">
-            <label className="sr-only" htmlFor="lookup-path">{t('manager.pathOrPrefix')}</label>
+            <label className="sr-only" htmlFor="lookup-path">{t('manager.searchLabel')}</label>
             <div className="manager-search-row">
               <input
                 id="lookup-path"
@@ -583,26 +596,55 @@ export function LinkManagerPanel({
                 onChange={(event) => setSearchInput(event.target.value)}
                 placeholder={t('manager.searchPlaceholder')}
                 autoComplete="off"
+                maxLength={512}
+                disabled={batchAction !== null || Boolean(updatingPath)}
                 aria-invalid={searchError ? true : undefined}
                 aria-describedby={searchError ? 'lookup-help lookup-error' : 'lookup-help'}
               />
               <button
                 className="button button-primary"
                 type="submit"
-                disabled={listLoading || !target}
+                disabled={listLoading || batchAction !== null || Boolean(updatingPath) || !target}
               >
                 <SearchIcon />
                 {listLoading ? t('manager.filtering') : t('manager.filter')}
               </button>
-              <button
-                className="button button-secondary"
-                type="button"
-                disabled={lookupLoading || !target}
-                onClick={() => void lookupExact(searchInput)}
-              >
-                <LinkIcon />
-                {lookupLoading ? t('manager.querying') : t('manager.exactQuery')}
-              </button>
+            </div>
+            <div className="manager-search-options">
+              <div className="form-field"><span>{t('manager.matchMode')}</span>
+                <DropdownSelect ariaLabel={t('manager.matchMode')} value={searchOptions.match}
+                  disabled={listLoading || batchAction !== null || Boolean(updatingPath)}
+                  options={[
+                    { value: 'contains', label: t('manager.matchContains') },
+                    { value: 'prefix', label: t('manager.matchPrefix') },
+                    { value: 'exact', label: t('manager.matchExact') },
+                  ]} onChange={match => setSearchOptions(current => ({ ...current, match }))} />
+              </div>
+              <div className="form-field"><span>{t('manager.stateFilter')}</span>
+                <DropdownSelect ariaLabel={t('manager.stateFilter')} value={searchOptions.state}
+                  disabled={listLoading || batchAction !== null || Boolean(updatingPath)}
+                  options={[
+                    { value: 'all', label: t('manager.allStates') },
+                    ...(view === 'trash' ? [{ value: 'deleted', label: t('life.deleted') }] : [
+                      { value: 'active', label: t('life.active') },
+                      { value: 'disabled', label: t('life.disabled') },
+                      { value: 'scheduled', label: t('life.scheduled') },
+                      { value: 'expired', label: t('life.expired') },
+                    ]),
+                    { value: 'purged', label: t('life.purged') },
+                  ]} onChange={state => setSearchOptions(current => ({ ...current, state }))} />
+              </div>
+              <div className="form-field"><span>{t('manager.sortLabel')}</span>
+                <DropdownSelect ariaLabel={t('manager.sortLabel')} value={searchOptions.sort}
+                  disabled={listLoading || batchAction !== null || Boolean(updatingPath)}
+                  options={[
+                    { value: 'path-asc', label: t('manager.sortAsc') },
+                    { value: 'path-desc', label: t('manager.sortDesc') },
+                  ]} onChange={sort => setSearchOptions(current => ({ ...current, sort }))} />
+              </div>
+              <button className="button button-secondary" type="button"
+                disabled={listLoading || batchAction !== null || Boolean(updatingPath) || !target}
+                onClick={() => void applyPrefix(true)}>{t('manager.resetSearch')}</button>
             </div>
             <p className="field-help" id="lookup-help">
               {t('manager.searchHelp')}

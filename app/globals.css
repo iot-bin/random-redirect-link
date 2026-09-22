@@ -1151,8 +1151,24 @@ select:focus-visible {
 
 .manager-search-row {
   display: grid;
-  grid-template-columns: minmax(0, 1fr) auto auto;
+  grid-template-columns: minmax(0, 1fr) auto;
   gap: 9px;
+}
+
+.manager-search-options {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr)) auto;
+  gap: 12px;
+  align-items: end;
+  margin-top: 12px;
+}
+
+@media (max-width: 900px) {
+  .manager-search-options { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+}
+
+@media (max-width: 480px) {
+  .manager-search-options { grid-template-columns: minmax(0, 1fr); }
 }
 
 .manager-browser {
