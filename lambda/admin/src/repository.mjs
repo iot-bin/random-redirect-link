@@ -1,4 +1,5 @@
 import { lifecycleUpdate, RETENTION_SECONDS } from "./lifecycle.mjs";
+import { matchesSearch } from './search.mjs';
 import {
   GetCommand,
   PutCommand,
@@ -36,8 +37,12 @@ export async function listLinkRecords({
   limit,
   prefix,
   exclusiveStartKey,
-  view = "links"
+  view = "links",
+  search = {},
+  now = Date.now()
 }) {
+  // A path prefix can use the index; contains matching still traverses index pages.
+  if (!prefix && search.match === 'prefix') prefix = search.q;
   const expressionAttributeNames = { "#listPk": LIST_PARTITION_ATTRIBUTE };
   const expressionAttributeValues = { ":listPk": LIST_PARTITION_VALUE };
   let keyConditionExpression = "#listPk = :listPk";
@@ -66,10 +71,10 @@ export async function listLinkRecords({
         ExpressionAttributeValues: expressionAttributeValues,
         Limit: limit - items.length,
         ...(key ? { ExclusiveStartKey: key } : {}),
-        ScanIndexForward: true
+        ScanIndexForward: search.sort !== 'path-desc'
       })
     );
-    items.push(...(response.Items ?? []));
+    items.push(...(response.Items ?? []).filter(item => matchesSearch(item, search, now)));
     key = response.LastEvaluatedKey;
     if (!key || items.length >= limit) break;
   }

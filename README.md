@@ -39,7 +39,8 @@ checks membership and environment permissions, then signs Admin API requests wit
 ## Features
 
 - Create random-subdomain or fixed-target redirect links.
-- Browse links with cursor pagination and path-prefix filtering.
+- Search paths and destinations together using case-insensitive substring matching, or select case-sensitive path prefix / exact path matching.
+- Filter by lifecycle status, sort paths ascending or descending, and reset search conditions with cursor pagination.
 - View, edit, enable, disable, and delete individual links.
 - Batch enable, disable, move to the recycle bin, or restore up to 50 links.
 - Schedule activation and expiry; recover soft-deleted links during a seven-day retention period.
@@ -152,6 +153,16 @@ smoke tests, logs, and rollback. Building a package does not deploy it.
   after each code update.
 
 ## Recycle bin and link schedules
+
+### Search and pagination
+
+Search, status filtering and sorting run on the backend across the selected environment. Trash remains a separate view. Contains matching uses literal substrings, without typo correction or regular expressions. Click Search or press Enter to apply conditions; an empty keyword keeps the selected status filter. All modes display results in the list.
+
+The list API accepts `q` (up to 512 characters), `match=contains|prefix|exact`, `state=all|active|disabled|scheduled|expired|deleted|purged`, and `sort=path-asc|path-desc`. The existing `prefix` parameter remains supported. Cursors are bound to search conditions; restart pagination when conditions change.
+
+Exact path searches use strongly consistent reads; prefixes use the path index. Contains and status matching traverse index pages, bounded to 20 database pages per request, each reading at most the remaining requested item count. Sparse matches may return an empty page with a continuation cursor; the UI prompts users to continue. Index results are eventually consistent. Consider a dedicated search index for high traffic or large datasets. Sorting supports global path order only, not page-local timestamp sorting.
+
+Deploy Admin Lambda first, then Control Lambda, then the console. Older backends do not support the new query parameters; updating only the frontend does not enable search. No table schema changes or record backfill are required.
 
 Links accept optional ISO 8601 startsAt/expiresAt timestamps with an explicit timezone. Null clears a timestamp on PATCH; an omitted field is unchanged. The console displays Singapore time (UTC+8). GET and HEAD check deletion, enabled state and the current time on every request. Existing links without these fields remain compatible.
 
