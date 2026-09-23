@@ -1,10 +1,9 @@
 import { NextResponse } from 'next/server';
 import { forwardAdminRequest } from '@/lib/admin-api';
 import { getLinkPathError, normalizeLinkPath } from '@/lib/link-path';
-import type { LinkBatchAction } from '@/lib/link-types';
+import { isLinkBatchAction } from '@/lib/link-contracts';
 
 const MAX_BATCH_SIZE = 50;
-const BATCH_ACTIONS = new Set<LinkBatchAction>(['enable', 'disable', 'delete', 'restore']);
 
 function errorResponse(error: string, code: string) {
   return NextResponse.json(
@@ -21,11 +20,8 @@ export async function POST(request: Request) {
 
   const values = body as Record<string, unknown>;
   const targetId = typeof values.targetId === 'string' ? values.targetId.trim() : '';
-  const action = typeof values.action === 'string'
-    ? values.action as LinkBatchAction
-    : null;
-
-  if (!action || !BATCH_ACTIONS.has(action)) {
+  const action = values.action;
+  if (!isLinkBatchAction(action)) {
     return errorResponse('批量操作类型无效', 'INVALID_BATCH_ACTION');
   }
   if (!Array.isArray(values.paths) || values.paths.length === 0) {
