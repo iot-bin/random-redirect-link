@@ -4,6 +4,7 @@ import {
   buildRandomTargetUrl,
   parseStatusCode,
   parseSubdomainLength,
+  randomSubdomain,
   resolveRedirect
 } from "../src/redirect.mjs";
 
@@ -33,6 +34,18 @@ test("builds a deterministic random-subdomain target", () => {
     ),
     "https://aaaaa.example.com/downloads/app.apk?source=short-link"
   );
+});
+
+test("rejects out-of-range bytes before mapping random subdomain characters", () => {
+  const batches = [Buffer.from([251, 252, 253, 254, 255]), Buffer.from([0, 35, 36, 37])];
+  const requestedLengths = [];
+  const randomBytes = length => {
+    requestedLengths.push(length);
+    return batches.shift();
+  };
+
+  assert.equal(randomSubdomain(5, randomBytes), "9a9ab");
+  assert.deepEqual(requestedLengths, [5, 4]);
 });
 
 test("resolves a random-subdomain record", () => {
