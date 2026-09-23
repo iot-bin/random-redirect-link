@@ -37,7 +37,17 @@ and page size; language and theme remain browser preferences.
 A separate retained audit table stores attempts before mutations and outcomes afterward.
 If outcome logging fails, HTTP 503 does not imply that the mutation failed: reconcile by reading.
 No passwords, tokens or full request bodies are logged. The UI shows the latest 100 events.
-Audit records have no automatic expiration; define a retention/export policy before large-scale use.
+New audit records expire after the configurable `AuditRetentionDays` period (30 days by default).
+The API hides older records immediately; DynamoDB TTL removes them asynchronously. Existing
+records without `purgeAt` are hidden after the cutoff but require a one-time backfill for
+physical removal. After deploying the table TTL setting, set `AUDIT_TABLE`, `WORKSPACE_ID`,
+`AWS_REGION`, and optionally `AUDIT_RETENTION_DAYS`, then run
+`node lambda/control/scripts/backfill-audit-ttl.mjs` to preview the count. Run it again with
+`--apply` to add or recalculate expiry timestamps on existing records when the retention
+setting changes. Point-in-time recovery can retain
+deleted items in backups for its configured recovery window.
+The Control Lambda uses active X-Ray tracing. Configure CloudWatch alarms and their
+notification targets separately for each deployment.
 
 ## Build and initialize
 

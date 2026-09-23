@@ -46,7 +46,14 @@ Admin Lambda 校验 API Gateway 提供的 IAM caller 与 MANAGEMENT_ROLE_ARN 对
 审计独立一张表。写操作先记录 attempt，再调用后端，最后记录 result/error。
 如果结果记录失败，调用方收到 503，不能认定业务未执行；应重新查询数据再决定是否重试。
 审计不保存密码、访问令牌或完整请求正文。页面展示最近 100 条，当前不提供长期归档和导出。
-两张表都按需计费、启用 PITR，并使用 Retain。审计表不会自动清理，需按业务制定保留策略。
+两张表都按需计费、启用 PITR，并使用 Retain。新审计记录按 `AuditRetentionDays`
+保留，默认 30 天；API 到期后立即隐藏，DynamoDB TTL 会异步清理。原有未设置
+`purgeAt` 的记录到期后也会从查询结果中隐藏；物理清理需要一次性回填。
+部署审计表 TTL 后，设置 `AUDIT_TABLE`、`WORKSPACE_ID`、`AWS_REGION`
+及可选的 `AUDIT_RETENTION_DAYS`，先运行
+`node lambda/control/scripts/backfill-audit-ttl.mjs` 预览数量，再加 `--apply`
+为旧记录写入或按新的保留期限重新计算到期时间。PITR 备份仍可能在其恢复窗口内保留已删除的数据。
+Control Lambda 启用 X-Ray 主动追踪。CloudWatch 告警及通知目标由部署者自行配置。
 
 ## 本地检查
 

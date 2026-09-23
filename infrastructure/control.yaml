@@ -12,6 +12,12 @@ Parameters:
   BackendInvokeArns:
     Type: CommaDelimitedList
     Description: Exact execute-api ARNs for the allowlisted Admin APIs, ending in /*/*/links*.
+  AuditRetentionDays:
+    Type: Number
+    Default: 30
+    MinValue: 1
+    MaxValue: 3650
+    Description: Days to retain audit events before DynamoDB TTL cleanup.
 Globals:
   Function:
     Runtime: nodejs24.x
@@ -46,6 +52,7 @@ Resources:
       KeySchema:
         - { AttributeName: pk, KeyType: HASH }
         - { AttributeName: sk, KeyType: RANGE }
+      TimeToLiveSpecification: { AttributeName: purgeAt, Enabled: true }
       SSESpecification: { SSEEnabled: true }
       PointInTimeRecoverySpecification: { PointInTimeRecoveryEnabled: true }
   Users:
@@ -111,10 +118,12 @@ Resources:
     Properties:
       CodeUri: ../lambda/control
       Handler: index.handler
+      Tracing: Active
       Environment:
         Variables:
           CONFIG_TABLE: !Ref Configuration
           AUDIT_TABLE: !Ref Audit
+          AUDIT_RETENTION_DAYS: !Ref AuditRetentionDays
           USER_POOL_ID: !Ref Users
           CLIENT_ID: !Ref Client
           WORKSPACE_ID: !Ref WorkspaceId

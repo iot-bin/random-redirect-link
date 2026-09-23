@@ -61,7 +61,7 @@ export function createHandler({ db = repository, upstream = callUpstream, users 
         if (method === 'GET') {
           if (path === '/config') return json(200, { ...config, allowedApiIds: apiIds });
           if (path === '/members') return json(200, { members: await db.listMembers(), ownerSub: (await db.get('OWNER'))?.sub });
-          return json(200, { entries: await db.listAudit() });
+          return json(200, { entries: await db.listAudit(now()) });
         }
         if (!((path === '/config' && method === 'PUT') || (path === '/members' && ['PUT','POST'].includes(method)))) fail(405,'METHOD_NOT_ALLOWED');
         const b = parseBody(event);
