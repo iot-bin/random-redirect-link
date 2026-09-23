@@ -1,5 +1,6 @@
 import { scheduleFields, validateSchedule, schedulePurgeAt } from "../lifecycle.mjs";
 import { parseSearch, matchesSearch } from '../search.mjs';
+import { isLinkView, linkListResponse } from '../link-contracts.mjs';
 import { createHash } from 'node:crypto';
 import { decodeCursor, encodeCursor } from "../cursor.mjs";
 import { HttpError } from "../errors.mjs";
@@ -60,7 +61,7 @@ export async function listLinks(event) {
   const limit = parseLimit(query.limit);
   const prefix = parsePrefix(query.prefix);
   const view = query.view ?? 'links';
-  if (!['links', 'trash'].includes(view)) throw new HttpError(400, 'INVALID_VIEW', 'Invalid list view');
+  if (!isLinkView(view)) throw new HttpError(400, 'INVALID_VIEW', 'Invalid list view');
   const search = parseSearch(query);
   const scope = ['q', 'match', 'state', 'sort'].some(key => query[key] !== undefined)
     ? 'search:' + createHash('sha256').update(JSON.stringify({ ...search, prefix, view })).digest('hex')
@@ -70,15 +71,15 @@ export async function listLinks(event) {
     const item = await getLinkRecord(search.q);
     const visible = item && (view === 'trash' ? Boolean(item.deletedAt) : !item.deletedAt)
       && (!prefix || item.path.startsWith(prefix)) && matchesSearch(item, search, Date.now());
-    return json(200, { items: visible ? [toPublicItem(item)] : [], nextCursor: null });
+    return json(200, linkListResponse(visible ? [toPublicItem(item)] : [], null));
   }
   const exclusiveStartKey = decodeCursor(query.cursor, scope);
   const response = await listLinkRecords({ limit, prefix, exclusiveStartKey, view, search });
 
-  return json(200, {
-    items: (response.Items ?? []).map(toPublicItem),
-    nextCursor: encodeCursor(response.LastEvaluatedKey, scope)
-  });
+  return json(200, linkListResponse(
+    (response.Items ?? []).map(toPublicItem),
+    encodeCursor(response.LastEvaluatedKey, scope)
+  ));
 }
 
 export async function getLink(rawPath) {

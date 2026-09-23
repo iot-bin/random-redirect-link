@@ -1,14 +1,9 @@
 import { randomBytes as secureRandomBytes } from "node:crypto";
-import {
-  DEFAULT_STATUS_CODE,
-  DEFAULT_SUBDOMAIN_LENGTH,
-  MAX_SUBDOMAIN_LENGTH,
-  MIN_SUBDOMAIN_LENGTH
-} from "./config.mjs";
+import { DEFAULT_STATUS_CODE, DEFAULT_SUBDOMAIN_LENGTH } from "./config.mjs";
+import { isLinkStatusCode, isSubdomainLength } from './link-contracts.mjs';
 import { RedirectConfigError } from "./errors.mjs";
 
 const ALPHABET = "abcdefghijklmnopqrstuvwxyz0123456789";
-const ALLOWED_STATUS_CODES = new Set([301, 302]);
 
 function parseHttpUrl(value, fieldName) {
   const rawValue = String(value ?? "").trim();
@@ -26,7 +21,7 @@ function parseHttpUrl(value, fieldName) {
 
 export function parseStatusCode(value) {
   const statusCode = Number(value ?? DEFAULT_STATUS_CODE);
-  if (!ALLOWED_STATUS_CODES.has(statusCode)) {
+  if (!isLinkStatusCode(statusCode)) {
     throw new RedirectConfigError("invalid statusCode");
   }
   return statusCode;
@@ -34,11 +29,7 @@ export function parseStatusCode(value) {
 
 export function parseSubdomainLength(value) {
   const length = Number(value ?? DEFAULT_SUBDOMAIN_LENGTH);
-  if (
-    !Number.isInteger(length)
-    || length < MIN_SUBDOMAIN_LENGTH
-    || length > MAX_SUBDOMAIN_LENGTH
-  ) {
+  if (!isSubdomainLength(length)) {
     throw new RedirectConfigError("invalid subdomainLength");
   }
   return length;

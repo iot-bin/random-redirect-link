@@ -1,49 +1,34 @@
-export const MAX_LINK_PATH_LENGTH = 128;
+import { MAX_LINK_PATH_LENGTH, normalizeLinkPath, normalizeLinkPrefix, linkPathIssue } from '../packages/contracts/index.mjs';
 
-export function normalizeLinkPath(input: string): string {
-  return String(input ?? '').trim().replace(/^\/+/, '').replace(/\/+$/, '');
-}
+export { MAX_LINK_PATH_LENGTH, normalizeLinkPath, normalizeLinkPrefix };
 
-export function normalizeLinkPrefix(input: string): string {
-  return String(input ?? '').trim().replace(/^\/+/, '');
-}
+const pathMessages = {
+  required: '请输入短链路径',
+  length: '短链路径不能超过 128 个字符',
+  dot_segments: '短链路径不能包含“..”',
+  double_slash: '短链路径不能包含连续斜杠',
+  query_fragment: '短链路径不能包含问号或井号',
+};
+const prefixMessages = {
+  required: '',
+  length: '路径前缀不能超过 128 个字符',
+  dot_segments: '路径前缀不能包含“..”',
+  double_slash: '路径前缀不能包含连续斜杠',
+  query_fragment: '路径前缀不能包含问号或井号',
+};
 
 export function getLinkPathError(input: string): string {
-  const path = normalizeLinkPath(input);
-
-  if (!path) return '请输入短链路径';
-  if (path.length > MAX_LINK_PATH_LENGTH) {
-    return '短链路径不能超过 128 个字符';
-  }
-  if (path.includes('..')) return '短链路径不能包含“..”';
-  if (path.includes('//')) return '短链路径不能包含连续斜杠';
-  if (path.includes('?') || path.includes('#')) {
-    return '短链路径不能包含问号或井号';
-  }
-
-  return '';
+  const issue = linkPathIssue(input);
+  return issue ? pathMessages[issue] : '';
 }
 
 export function getLinkPrefixError(input: string): string {
-  const prefix = normalizeLinkPrefix(input);
-
-  if (prefix.length > MAX_LINK_PATH_LENGTH) {
-    return '路径前缀不能超过 128 个字符';
-  }
-  if (prefix.includes('..')) return '路径前缀不能包含“..”';
-  if (prefix.includes('//')) return '路径前缀不能包含连续斜杠';
-  if (prefix.includes('?') || prefix.includes('#')) {
-    return '路径前缀不能包含问号或井号';
-  }
-
-  return '';
+  const issue = linkPathIssue(input, { prefix: true });
+  return issue ? prefixMessages[issue] : '';
 }
 
 export function encodeLinkPath(input: string): string {
-  return normalizeLinkPath(input)
-    .split('/')
-    .map((segment) => encodeURIComponent(segment))
-    .join('/');
+  return normalizeLinkPath(input).split('/').map(encodeURIComponent).join('/');
 }
 
 export function buildShortUrl(baseUrl: string, path: string): string {
@@ -52,11 +37,6 @@ export function buildShortUrl(baseUrl: string, path: string): string {
   return base && encodedPath ? `${base}/${encodedPath}` : '';
 }
 
-export function getLinkTarget(record: {
-  targetUrl?: string;
-  targetBaseUrl?: string;
-  targetPath?: string;
-}): string {
-  if (record.targetUrl) return record.targetUrl;
-  return `${record.targetBaseUrl ?? ''}${record.targetPath ?? ''}`;
+export function getLinkTarget(record: { targetUrl?: string; targetBaseUrl?: string; targetPath?: string }): string {
+  return record.targetUrl || `${record.targetBaseUrl ?? ''}${record.targetPath ?? ''}`;
 }

@@ -7,7 +7,8 @@
     "dev": "next dev",
     "build": "next build",
     "start": "next start",
-    "lint": "eslint"
+    "lint": "eslint",
+    "contracts:check": "node packages/contracts/sync.mjs --check"
   },
   "dependencies": {
     "@vercel/speed-insights": "^2.0.0",

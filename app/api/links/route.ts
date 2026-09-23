@@ -10,10 +10,11 @@ import {
   getSubdomainLengthError,
   getTargetUrlError,
 } from '@/lib/link-validation';
+import {
+  DEFAULT_LIST_LIMIT, MAX_LIST_LIMIT, MAX_CURSOR_LENGTH,
+  isLinkMatch, isLinkState, isLinkSort, isLinkView,
+} from '../../../packages/contracts/index.mjs';
 
-const DEFAULT_LIST_LIMIT = 25;
-const MAX_LIST_LIMIT = 100;
-const MAX_CURSOR_LENGTH = 2048;
 
 function errorResponse(error: string, code: string) {
   return NextResponse.json(
@@ -62,9 +63,9 @@ export function GET(request: Request) {
   const state = searchParams.get('state') ?? 'all';
   const sort = searchParams.get('sort') ?? 'path-asc';
   if (q.length > 512 || /[\u0000-\u001f\u007f]/.test(q)
-    || !['contains', 'prefix', 'exact'].includes(match)
-    || !['all', 'active', 'disabled', 'scheduled', 'expired', 'purged', 'deleted'].includes(state)
-    || !['path-asc', 'path-desc'].includes(sort)) {
+    || !isLinkMatch(match)
+    || !isLinkState(state)
+    || !isLinkSort(sort)) {
     return errorResponse('Invalid search options', 'INVALID_SEARCH');
   }
   for (const [key, value] of Object.entries({ q, match, state, sort })) {
@@ -73,7 +74,7 @@ export function GET(request: Request) {
   if (cursor) upstreamQuery.set('cursor', cursor);
   if (prefix) upstreamQuery.set('prefix', prefix);
   const view = searchParams.get('view') ?? 'links';
-  if (!['links', 'trash'].includes(view)) return errorResponse('Invalid view', 'INVALID_VIEW');
+  if (!isLinkView(view)) return errorResponse('Invalid view', 'INVALID_VIEW');
   upstreamQuery.set('view', view);
 
   return forwardAdminRequest({
