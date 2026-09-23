@@ -38,6 +38,7 @@ const apiMessages: Record<string, MessageKey> = {
   AUTH_THROTTLED: 'auth.throttled',
   AUTH_CHALLENGE_UNSUPPORTED: 'auth.unsupported',
   VERSION_CONFLICT: 'api.versionConflict',
+  INVALID_SEARCH: 'manager.invalidSearch',
   PASSWORD_NOT_CONFIGURED: 'api.passwordNotConfigured',
   INVALID_REQUEST: 'api.invalidRequest',
   PASSWORD_REQUIRED: 'login.passwordRequired',

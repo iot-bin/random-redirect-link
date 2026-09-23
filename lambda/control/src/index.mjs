@@ -98,7 +98,7 @@ export function createHandler({ db = repository, upstream = callUpstream, users 
       if (!target || !apiIds.includes(target.apiId)) fail(404,'TARGET_NOT_FOUND');
       const body = ['POST','PATCH'].includes(method) ? parseBody(event) : undefined;
       const query = {};
-      for (const key of ['limit','prefix','cursor','view']) if (event.queryStringParameters?.[key] !== undefined) query[key] = event.queryStringParameters[key];
+      for (const key of ['limit','prefix','cursor','view','q','match','state','sort']) if (event.queryStringParameters?.[key] !== undefined) query[key] = event.queryStringParameters[key];
       if (write) { audit = { id: randomUUID(), actor: claims.sub, targetId:id, operation:method, path:endpoint,
         ...(Array.isArray(body?.paths) ? { paths:body.paths.slice(0,50), action:body.action } : {}) }; await record('attempt'); }
       const response = await upstream(target,endpoint,method,query,body);

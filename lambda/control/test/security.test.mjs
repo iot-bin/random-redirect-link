@@ -22,6 +22,17 @@ test('rejects absent authorizer, ID tokens, wrong clients and missing expiry',as
   for(const claims of [{token_use:'id'},{client_id:'other'},{exp:undefined},{exp:999},{iss:'evil'}]) assert.equal((await f.handler(f.event('GET','/me',undefined,claims))).statusCode,401);
   assert.equal(f.calls.length,0);
 });
+test('search options are forwarded only after environment authorization',async()=>{
+  const f=fixture();
+  const query={q:'example.com',match:'contains',state:'active',sort:'path-desc',view:'links',limit:'25'};
+  const request={...f.event('GET','/targets/aws-01/links'),queryStringParameters:{...query,arbitraryUrl:'https://invalid.example'}};
+  assert.equal((await f.handler(request)).statusCode,200);
+  assert.deepEqual(f.calls[0][3],query);
+  f.records.get('MEMBER#'+sub).grants={};
+  assert.equal((await f.handler(request)).statusCode,403);
+  assert.equal(f.calls.length,1);
+});
+
 test('public configuration contains no API IDs or membership data',async()=>{
   const f=fixture();const r=await f.handler({rawPath:'/public/site',requestContext:{http:{method:'GET'}}});
   assert.deepEqual(JSON.parse(r.body),{...configuration.site,region:'ap-southeast-1',cognitoClientId:'client'});

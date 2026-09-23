@@ -57,6 +57,19 @@ export function GET(request: Request) {
   }
 
   const upstreamQuery = new URLSearchParams({ limit: String(limit) });
+  const q = searchParams.get('q')?.trim() ?? '';
+  const match = searchParams.get('match') ?? 'contains';
+  const state = searchParams.get('state') ?? 'all';
+  const sort = searchParams.get('sort') ?? 'path-asc';
+  if (q.length > 512 || /[\u0000-\u001f\u007f]/.test(q)
+    || !['contains', 'prefix', 'exact'].includes(match)
+    || !['all', 'active', 'disabled', 'scheduled', 'expired', 'purged', 'deleted'].includes(state)
+    || !['path-asc', 'path-desc'].includes(sort)) {
+    return errorResponse('Invalid search options', 'INVALID_SEARCH');
+  }
+  for (const [key, value] of Object.entries({ q, match, state, sort })) {
+    if (searchParams.has(key)) upstreamQuery.set(key, value);
+  }
   if (cursor) upstreamQuery.set('cursor', cursor);
   if (prefix) upstreamQuery.set('prefix', prefix);
   const view = searchParams.get('view') ?? 'links';
