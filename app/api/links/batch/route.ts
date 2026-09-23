@@ -53,7 +53,6 @@ export async function POST(request: Request) {
     targetId,
     endpoint: '/links/batch',
     method: 'POST',
-    operation: 'batch',
     body: { action, paths },
   });
 }

@@ -38,7 +38,6 @@ async function handleRequest(
     targetId,
     endpoint: `/links/${encodeLinkPath(path)}`,
     method,
-    operation: method === 'GET' ? 'get' : 'delete',
   });
 }
 
@@ -132,7 +131,6 @@ export async function PATCH(request: Request, context: RouteContext) {
     targetId,
     endpoint: `/links/${encodeLinkPath(path)}`,
     method: 'PATCH',
-    operation: 'update',
     body: update,
   });
 }

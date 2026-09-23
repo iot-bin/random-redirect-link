@@ -12,11 +12,6 @@ export function json(statusCode, body, extraHeaders = {}) {
   };
 }
 
-export function getAuth(event) {
-  const headers = event?.headers ?? {};
-  return headers.authorization ?? headers.Authorization ?? "";
-}
-
 export function parseJsonBody(event) {
   try {
     const rawBody = event?.isBase64Encoded
