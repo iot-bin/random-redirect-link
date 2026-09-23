@@ -62,8 +62,3 @@ export interface ApiError {
   code?: string;
   detail?: string;
 }
-
-export interface DeleteLinkResponse {
-  deleted: boolean;
-  path: string;
-}

@@ -81,7 +81,6 @@ export function GET(request: Request) {
     targetId,
     endpoint: `/links?${upstreamQuery.toString()}`,
     method: 'GET',
-    operation: 'list',
   });
 }
 
@@ -129,7 +128,6 @@ export async function POST(request: Request) {
     targetId,
     endpoint: '/links',
     method: 'POST',
-    operation: 'create',
     body: {
       path,
       targetUrl,
