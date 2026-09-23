@@ -2,7 +2,7 @@ import assert from 'node:assert/strict';
 import test from 'node:test';
 import {
   isLinkBatchAction, isLinkMatch, isLinkState, isLinkSort, isLinkView,
-  linkPathIssue, normalizeLinkPath, normalizePublicRequestPath,
+  linkPathIssue, normalizeLinkPath, normalizeLinkPrefix, normalizePublicRequestPath,
   targetUrlIssue, splitTargetUrl, parseLinkListResponse, parseLinkBatchResponse,
   linkListResponse, linkBatchResponse, isLinkStatusCode,
 } from './index.mjs';
@@ -14,6 +14,11 @@ test('link path rules keep creation and public lookup semantics distinct', () =>
   assert.equal(linkPathIssue('a?', { prefix: true }), 'query_fragment');
   assert.equal(normalizePublicRequestPath('/%E6%B5%8B%E8%AF%95'), '测试');
   assert.equal(normalizePublicRequestPath('/%E0%A4%A'), '%E0%A4%A');
+  const repeatedSlashes = '/'.repeat(50_000);
+  assert.equal(normalizeLinkPath(repeatedSlashes), '');
+  assert.equal(normalizeLinkPrefix(repeatedSlashes), '');
+  assert.equal(normalizePublicRequestPath(repeatedSlashes), '');
+  assert.equal(normalizeLinkPath(`//a/b${repeatedSlashes}`), 'a/b');
 });
 
 test('target URL rules and serialized fields agree', () => {

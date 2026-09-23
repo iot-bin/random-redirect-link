@@ -21,11 +21,19 @@ export const isLinkSort = (value) => LINK_SORTS.includes(value);
 export const isLinkView = (value) => LINK_VIEWS.includes(value);
 
 export function normalizeLinkPath(input) {
-  return String(input ?? '').trim().replace(/^\/+/, '').replace(/\/+$/, '');
+  const path = String(input ?? '').trim();
+  let start = 0;
+  let end = path.length;
+  while (path[start] === '/') start++;
+  while (end > start && path[end - 1] === '/') end--;
+  return path.slice(start, end);
 }
 
 export function normalizeLinkPrefix(input) {
-  return String(input ?? '').trim().replace(/^\/+/, '');
+  const prefix = String(input ?? '').trim();
+  let start = 0;
+  while (prefix[start] === '/') start++;
+  return prefix.slice(start);
 }
 
 // Return a stable reason; callers map it to their own localized message/error.
@@ -105,7 +113,9 @@ export function normalizePublicRequestPath(rawPath) {
   const withoutLeadingSlash = trimmed.startsWith('/') ? trimmed.slice(1) : trimmed;
   let decoded = withoutLeadingSlash;
   try { decoded = decodeURIComponent(withoutLeadingSlash); } catch { /* safe lookup miss */ }
-  return decoded.replace(/\/+$/, '');
+  let end = decoded.length;
+  while (end > 0 && decoded[end - 1] === '/') end--;
+  return decoded.slice(0, end);
 }
 
 export function requestPath(event) {
