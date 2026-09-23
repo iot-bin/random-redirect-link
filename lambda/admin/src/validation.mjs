@@ -186,7 +186,7 @@ export function parseBatchRequest(event) {
     throw new HttpError(
       400,
       "INVALID_BATCH_ACTION",
-      "action must be enable, disable, or delete"
+      "action must be enable, disable, delete, or restore"
     );
   }
   if (!Array.isArray(body.paths) || body.paths.length === 0) {
