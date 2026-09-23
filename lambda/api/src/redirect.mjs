@@ -45,11 +45,15 @@ export function parseSubdomainLength(value) {
 }
 
 export function randomSubdomain(length, randomBytes = secureRandomBytes) {
-  const bytes = randomBytes(length);
   let value = "";
+  const unbiasedLimit = 256 - (256 % ALPHABET.length);
 
-  for (let index = 0; index < length; index += 1) {
-    value += ALPHABET[bytes[index] % ALPHABET.length];
+  while (value.length < length) {
+    const bytes = randomBytes(length - value.length);
+    for (const byte of bytes) {
+      if (byte >= unbiasedLimit) continue;
+      value += ALPHABET[byte % ALPHABET.length];
+    }
   }
 
   return value;

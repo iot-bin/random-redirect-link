@@ -1,9 +1,11 @@
 import { DynamoDBClient } from '@aws-sdk/client-dynamodb';
 import { DynamoDBDocumentClient, GetCommand, PutCommand, QueryCommand } from '@aws-sdk/lib-dynamodb';
 import { HttpError } from './domain.mjs';
+import { auditCutoff, auditPurgeAt } from './audit-retention.mjs';
 const client = DynamoDBDocumentClient.from(new DynamoDBClient({ region: process.env.AWS_REGION }), { marshallOptions: { removeUndefinedValues: true } });
 const pk = 'WS#' + process.env.WORKSPACE_ID;
 const table = process.env.CONFIG_TABLE;
+const auditRetentionDays = Number(process.env.AUDIT_RETENTION_DAYS ?? 30);
 const strip = item => item && Object.fromEntries(Object.entries(item).filter(([k]) => !['pk', 'sk'].includes(k)));
 export const repository = {
   async get(sk) {
@@ -28,10 +30,10 @@ export const repository = {
     return items;
   },
   async audit(item) {
-    await client.send(new PutCommand({ TableName: process.env.AUDIT_TABLE, Item: { ...item, pk, sk: item.at + '#' + item.id + '#' + item.phase } }));
+    await client.send(new PutCommand({ TableName: process.env.AUDIT_TABLE, Item: { ...item, pk, sk: item.at + '#' + item.id + '#' + item.phase, purgeAt: auditPurgeAt(item.at, auditRetentionDays) } }));
   },
-  async listAudit() {
-    const r = await client.send(new QueryCommand({ TableName: process.env.AUDIT_TABLE, KeyConditionExpression: 'pk = :pk', ExpressionAttributeValues: { ':pk': pk }, ScanIndexForward: false, Limit: 100 }));
+  async listAudit(now = Date.now()) {
+    const r = await client.send(new QueryCommand({ TableName: process.env.AUDIT_TABLE, KeyConditionExpression: 'pk = :pk AND sk >= :cutoff', ExpressionAttributeValues: { ':pk': pk, ':cutoff': auditCutoff(now, auditRetentionDays) }, ScanIndexForward: false, Limit: 100 }));
     return r.Items.map(strip);
   },
 };
