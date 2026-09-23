@@ -2,6 +2,7 @@ import type { Metadata } from 'next';
 import { Geist, Geist_Mono } from 'next/font/google';
 import { cookies, headers } from 'next/headers';
 import '@/app/globals.css';
+import '@/app/styles/console.css';
 import { LocaleProvider } from '@/lib/i18n/LocaleProvider';
 import { LOCALE_COOKIE, normalizeLocale } from '@/lib/i18n/config';
 import { getSiteSettings } from '@/lib/api-targets';
