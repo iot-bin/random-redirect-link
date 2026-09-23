@@ -7,6 +7,7 @@ import {
   updateLinkEnabledIfExists
 } from "../repository.mjs";
 import { parseBatchRequest } from "../validation.mjs";
+import { linkBatchResponse } from '../link-contracts.mjs';
 
 async function mutateBatchItem(
   action,
@@ -58,5 +59,5 @@ export async function batchMutateLinks(event, dependencies) {
     }
   }
 
-  return json(200, { action, succeeded, failed });
+  return json(200, linkBatchResponse(action, succeeded, failed));
 }

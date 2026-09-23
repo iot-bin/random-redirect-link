@@ -1,4 +1,5 @@
 import { HttpError } from './errors.mjs';
+import { isLinkMatch, isLinkState, isLinkSort } from './link-contracts.mjs';
 
 export function parseSearch(query) {
   const q = String(query.q ?? '').trim();
@@ -6,9 +7,9 @@ export function parseSearch(query) {
   const state = query.state ?? 'all';
   const sort = query.sort ?? 'path-asc';
   if (q.length > 512 || /[\u0000-\u001f\u007f]/.test(q)
-    || !['contains', 'prefix', 'exact'].includes(match)
-    || !['all', 'active', 'disabled', 'scheduled', 'expired', 'purged', 'deleted'].includes(state)
-    || !['path-asc', 'path-desc'].includes(sort)) {
+    || !isLinkMatch(match)
+    || !isLinkState(state)
+    || !isLinkSort(sort)) {
     throw new HttpError(400, 'INVALID_SEARCH', 'Invalid search options');
   }
   return { q, match, state, sort };

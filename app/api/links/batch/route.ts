@@ -2,8 +2,8 @@ import { NextResponse } from 'next/server';
 import { forwardAdminRequest } from '@/lib/admin-api';
 import { getLinkPathError, normalizeLinkPath } from '@/lib/link-path';
 import { isLinkBatchAction } from '@/lib/link-contracts';
+import { MAX_BATCH_SIZE } from '../../../../packages/contracts/index.mjs';
 
-const MAX_BATCH_SIZE = 50;
 
 function errorResponse(error: string, code: string) {
   return NextResponse.json(

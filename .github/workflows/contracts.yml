@@ -1,0 +1,17 @@
+name: Shared link contract
+
+on:
+  pull_request:
+  push:
+    branches: [master]
+
+jobs:
+  contract:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '24'
+      - run: node packages/contracts/sync.mjs --check
+      - run: node --test packages/contracts/contract.test.mjs

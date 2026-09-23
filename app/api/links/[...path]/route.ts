@@ -1,4 +1,5 @@
 import { NextResponse } from 'next/server';
+import { isLinkStatusCode } from '../../../../packages/contracts/index.mjs';
 import { forwardAdminRequest } from '@/lib/admin-api';
 import {
   encodeLinkPath,
@@ -87,7 +88,7 @@ export async function PATCH(request: Request, context: RouteContext) {
   }
 
   if ('statusCode' in values) {
-    if (values.statusCode !== 301 && values.statusCode !== 302) {
+    if (!isLinkStatusCode(values.statusCode)) {
       return NextResponse.json(
         { error: '跳转状态码必须是 301 或 302', code: 'INVALID_STATUS_CODE' },
         { status: 400, headers: { 'Cache-Control': 'no-store' } },

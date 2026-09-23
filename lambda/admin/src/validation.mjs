@@ -1,5 +1,4 @@
 import {
-  BATCH_ACTIONS,
   DEFAULT_LIMIT,
   MAX_BATCH_SIZE,
   MAX_LIMIT,
@@ -9,6 +8,7 @@ import { scheduleFields } from "./lifecycle.mjs";
 import { HttpError } from "./errors.mjs";
 import { getPathError, normalizePath } from "./link-path.mjs";
 import { parseJsonBody } from "./http.mjs";
+import { isLinkBatchAction, isLinkStatusCode, targetUrlIssue, splitTargetUrl, isSubdomainLength } from './link-contracts.mjs';
 
 export function parseLimit(value) {
   if (value === undefined || value === null || value === "") {
@@ -42,66 +42,25 @@ export function parsePrefix(value) {
 }
 
 export function parseTargetUrl(value) {
-  if (typeof value !== "string") {
-    throw new HttpError(
-      400,
-      "INVALID_TARGET_URL",
-      "targetUrl must be a string"
-    );
+  const issue = targetUrlIssue(value);
+  if (issue) {
+    const messages = {
+      type: 'targetUrl must be a string',
+      required: `targetUrl must contain between 1 and ${MAX_TARGET_URL_LENGTH} characters`,
+      length: `targetUrl must contain between 1 and ${MAX_TARGET_URL_LENGTH} characters`,
+      invalid: 'invalid targetUrl',
+      protocol: 'targetUrl must use http or https',
+      credentials: 'targetUrl must not contain credentials',
+      query_fragment: 'targetUrl query and fragment are not supported'
+    };
+    throw new HttpError(400, 'INVALID_TARGET_URL', messages[issue]);
   }
-
-  const targetUrl = value.trim();
-  if (!targetUrl || targetUrl.length > MAX_TARGET_URL_LENGTH) {
-    throw new HttpError(
-      400,
-      "INVALID_TARGET_URL",
-      `targetUrl must contain between 1 and ${MAX_TARGET_URL_LENGTH} characters`
-    );
-  }
-
-  let target;
-  try {
-    target = new URL(targetUrl);
-  } catch {
-    throw new HttpError(400, "INVALID_TARGET_URL", "invalid targetUrl");
-  }
-
-  if (target.protocol !== "https:" && target.protocol !== "http:") {
-    throw new HttpError(
-      400,
-      "INVALID_TARGET_URL",
-      "targetUrl must use http or https"
-    );
-  }
-  if (target.username || target.password) {
-    throw new HttpError(
-      400,
-      "INVALID_TARGET_URL",
-      "targetUrl must not contain credentials"
-    );
-  }
-  if (target.search || target.hash) {
-    throw new HttpError(
-      400,
-      "INVALID_TARGET_URL",
-      "targetUrl query and fragment are not supported"
-    );
-  }
-
-  return {
-    targetUrl: target.toString(),
-    targetBaseUrl: `${target.protocol}//${target.host}`,
-    targetPath: target.pathname || "/"
-  };
+  return splitTargetUrl(value);
 }
 
 export function parseSubdomainLength(value) {
   const subdomainLength = Number(value);
-  if (
-    !Number.isInteger(subdomainLength)
-    || subdomainLength < 3
-    || subdomainLength > 32
-  ) {
+  if (!isSubdomainLength(subdomainLength)) {
     throw new HttpError(
       400,
       "INVALID_SUBDOMAIN_LENGTH",
@@ -142,7 +101,7 @@ export function getUpdateFields(body) {
   }
 
   if (Object.prototype.hasOwnProperty.call(body, "statusCode")) {
-    if (body.statusCode !== 301 && body.statusCode !== 302) {
+    if (!isLinkStatusCode(body.statusCode)) {
       throw new HttpError(
         400,
         "INVALID_STATUS_CODE",
@@ -182,7 +141,7 @@ export function parseExpectedUpdatedAt(body) {
 export function parseBatchRequest(event) {
   const body = parseJsonBody(event);
   const action = body.action;
-  if (typeof action !== "string" || !BATCH_ACTIONS.has(action)) {
+  if (!isLinkBatchAction(action)) {
     throw new HttpError(
       400,
       "INVALID_BATCH_ACTION",
