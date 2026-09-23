@@ -1,6 +1,6 @@
 import type { Metadata } from 'next';
 import { Geist, Geist_Mono } from 'next/font/google';
-import { cookies } from 'next/headers';
+import { cookies, headers } from 'next/headers';
 import '@/app/globals.css';
 import { LocaleProvider } from '@/lib/i18n/LocaleProvider';
 import { LOCALE_COOKIE, normalizeLocale } from '@/lib/i18n/config';
@@ -47,13 +47,18 @@ export async function generateMetadata(): Promise<Metadata> {
 export default async function RootLayout({
   children,
 }: Readonly<{ children: React.ReactNode }>) {
-  const cookieStore = await cookies();
+  const [cookieStore, requestHeaders] = await Promise.all([cookies(), headers()]);
   const locale = normalizeLocale(cookieStore.get(LOCALE_COOKIE)?.value);
+  const nonce = requestHeaders.get('x-nonce') ?? undefined;
 
   return (
     <html lang={locale} data-theme="light" suppressHydrationWarning>
       <head>
-        <script id="theme-initialization" dangerouslySetInnerHTML={{ __html: themeInitializationScript }} />
+        <script
+          id="theme-initialization"
+          nonce={nonce}
+          dangerouslySetInnerHTML={{ __html: themeInitializationScript }}
+        />
       </head>
       <body className={`${geistSans.variable} ${geistMono.variable}`}>
         <LocaleProvider initialLocale={locale}>{children}</LocaleProvider>
