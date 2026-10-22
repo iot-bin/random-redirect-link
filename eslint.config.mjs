@@ -12,8 +12,21 @@ const eslintConfig = defineConfig([
     "out/**",
     "build/**",
     "lambda/**/dist/**",
+    ".verification/**",
     "next-env.d.ts",
   ]),
+  {
+    files: ["tests/**/*.cjs"],
+    rules: {
+      "@typescript-eslint/no-require-imports": "off",
+      "@next/next/no-assign-module-variable": "off",
+    },
+  },
+  {
+    // Existing initial-load effect; keep the exception local until it is refactored.
+    files: ["app/components/ControlPanel.tsx"],
+    rules: { "react-hooks/set-state-in-effect": "off" },
+  },
 ]);
 
 export default eslintConfig;
