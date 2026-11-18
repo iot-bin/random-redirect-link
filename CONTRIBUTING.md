@@ -56,6 +56,11 @@ When changing SAM templates, run `sam validate --lint --template-file <template>
 for each changed SAM template if the CLI is available. Validate infrastructure with
 `cfn-lint template.yaml infrastructure/control.yaml infrastructure/artifacts.yaml`.
 
+The CI workflow runs frontend lint, type checks, tests, and build; tests and
+builds all three Lambda packages; and validates the SAM templates on pull
+requests and pushes to `master`. It does not deploy resources or require AWS
+credentials.
+
 ## Pull Requests
 
 - Explain the user-visible behavior and why the change is needed.

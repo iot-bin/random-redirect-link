@@ -1,0 +1,59 @@
+name: CI
+
+on:
+  pull_request:
+  push:
+    branches: [master]
+
+permissions:
+  contents: read
+
+jobs:
+  frontend:
+    name: Frontend
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v7
+      - uses: actions/setup-node@v7
+        with:
+          node-version: '24'
+          cache: npm
+      - run: npm ci
+      - run: npm run lint
+      - run: npx next typegen
+      - run: npx tsc --noEmit
+      - run: node --test tests/*.test.cjs
+      - run: npm run build
+
+  lambda:
+    name: Lambda (${{ matrix.package }})
+    runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        package: [admin, api, control]
+    steps:
+      - uses: actions/checkout@v7
+      - uses: pnpm/setup@v3
+        with:
+          version: 11.19.0
+          runtime: node@24
+          working-directory: lambda/${{ matrix.package }}
+          require-lockfile: true
+          cache: true
+      - if: matrix.package != 'control'
+        run: pnpm --dir lambda/${{ matrix.package }} check
+      - run: pnpm --dir lambda/${{ matrix.package }} test
+      - run: pnpm --dir lambda/${{ matrix.package }} build
+
+  infrastructure:
+    name: SAM templates
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v7
+      - uses: aws-actions/setup-sam@v3
+        with:
+          use-installer: true
+      - run: sam validate --lint --template-file template.yaml
+      - run: sam validate --lint --template-file infrastructure/control.yaml
+      - run: sam validate --lint --template-file infrastructure/artifacts.yaml
